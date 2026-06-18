@@ -39,10 +39,10 @@ model Cyber {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  users        User[]
-  tickets      Ticket[]
-  sessions     SessionOrdinateur[]
-  transactions TransactionCaisse[]
+  staffAssignments UserCyber[]
+  tickets          Ticket[]
+  sessions         SessionOrdinateur[]
+  transactions     TransactionCaisse[]
 }
 
 model User {
@@ -50,12 +50,24 @@ model User {
   username     String   @unique
   passwordHash String
   role         Role     @default(STAFF)
-  cyberId      String?
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
-  cyber              Cyber?              @relation(fields: [cyberId], references: [id])
+  cybers             UserCyber[]
   ticketsCrees       Ticket[]
   transactionsCaisse TransactionCaisse[]
+}
+
+model UserCyber {
+  userId     String
+  cyberId    String
+  assignedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cyber Cyber @relation(fields: [cyberId], references: [id], onDelete: Cascade)
+
+  @@id([userId, cyberId])
+  @@index([cyberId])
 }
 
 model Ticket {

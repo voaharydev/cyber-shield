@@ -1,22 +1,35 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AppHeader } from '@/components/AppHeader';
 import { CyberCreateForm } from '@/components/CyberCreateForm';
 import { useAuth } from '@/lib/auth';
-import { useCyber } from '@/lib/cyber-context';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { CyberSummary, fetchCybers } from '@/lib/api';
 
 export default function CybersPage() {
   const { isAdmin } = useAuth();
-  const { cybers, loading } = useCyber();
   const router = useRouter();
+  const [cybers, setCybers] = useState<CyberSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { cybers: list } = await fetchCybers();
+      setCybers(list);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) {
       router.replace('/dashboard');
+      return;
     }
-  }, [isAdmin, router]);
+    void load();
+  }, [isAdmin, router, load]);
 
   if (!isAdmin) {
     return null;
@@ -62,7 +75,7 @@ export default function CybersPage() {
           <h2 className="mb-4 text-lg font-medium text-zinc-300">
             Nouveau cybercafé
           </h2>
-          <CyberCreateForm />
+          <CyberCreateForm onCreated={() => void load()} />
         </section>
       </main>
     </div>

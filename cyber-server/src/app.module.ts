@@ -5,6 +5,7 @@ import { TicketModule } from './ticket/ticket.module';
 import { PcModule } from './pc/pc.module';
 import { ConfigModule } from './config/config.module';
 import { CyberModule } from './cyber/cyber.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { CyberModule } from './cyber/cyber.module';
     PcModule,
     ConfigModule,
     CyberModule,
+    UsersModule,
   ],
   providers: [...authGlobalProviders],
 })

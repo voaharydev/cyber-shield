@@ -6,7 +6,9 @@ export interface AuthUser {
   id: string;
   username: string;
   role: UserRole;
-  cyberId: string | null;
+  isActive: boolean;
+  cyberIds: string[];
+  cybers: { id: string; nom: string }[];
 }
 
 export interface LoginResponse {
@@ -83,6 +85,28 @@ export interface CreateCyberRequest {
   nombrePostes: number;
   dureesTicket: number[];
   prixParMinute: number;
+}
+
+export interface StaffUser {
+  id: string;
+  username: string;
+  role: UserRole;
+  isActive: boolean;
+  createdAt: string;
+  cyberIds: string[];
+  cybers: { id: string; nom: string }[];
+}
+
+export interface CreateStaffRequest {
+  username: string;
+  password: string;
+  cyberIds: string[];
+}
+
+export interface UpdateStaffRequest {
+  cyberIds?: string[];
+  password?: string;
+  isActive?: boolean;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5001';
@@ -221,5 +245,44 @@ export async function updateConfig(
   return apiFetch<AppConfig>('/config', {
     method: 'PATCH',
     body: JSON.stringify(dto),
+  });
+}
+
+export async function fetchStaff(
+  includeInactive = false,
+): Promise<{ staff: StaffUser[] }> {
+  const query = includeInactive ? '?includeInactive=true' : '';
+  return apiFetch<{ staff: StaffUser[] }>(`/users${query}`, {
+    skipCyberHeader: true,
+  });
+}
+
+export async function createStaff(
+  dto: CreateStaffRequest,
+): Promise<{ staff: StaffUser }> {
+  return apiFetch<{ staff: StaffUser }>('/users', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+    skipCyberHeader: true,
+  });
+}
+
+export async function updateStaff(
+  id: string,
+  dto: UpdateStaffRequest,
+): Promise<{ staff: StaffUser }> {
+  return apiFetch<{ staff: StaffUser }>(`/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dto),
+    skipCyberHeader: true,
+  });
+}
+
+export async function deactivateStaff(
+  id: string,
+): Promise<{ staff: StaffUser }> {
+  return apiFetch<{ staff: StaffUser }>(`/users/${id}`, {
+    method: 'DELETE',
+    skipCyberHeader: true,
   });
 }

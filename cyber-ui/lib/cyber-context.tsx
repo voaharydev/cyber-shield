@@ -15,23 +15,36 @@ const CYBER_KEY = 'cyber_active_id';
 
 interface CyberContextValue {
   activeCyberId: string | null;
-  activeCyber: CyberSummary | null;
-  cybers: CyberSummary[];
+  activeCyber: { id: string; nom: string } | null;
+  cybers: { id: string; nom: string }[];
   loading: boolean;
   setActiveCyberId: (id: string) => void;
   refreshCybers: () => Promise<void>;
+  canSwitchCyber: boolean;
 }
 
 const CyberContext = createContext<CyberContextValue | null>(null);
 
+function pickActiveId(
+  cyberIds: string[],
+  stored: string | null,
+): string | null {
+  if (cyberIds.length === 0) return null;
+  if (stored && cyberIds.includes(stored)) return stored;
+  return cyberIds[0];
+}
+
 export function CyberProvider({ children }: { children: React.ReactNode }) {
   const { user, token, isAdmin } = useAuth();
-  const [cybers, setCybers] = useState<CyberSummary[]>([]);
+  const [cybers, setCybers] = useState<{ id: string; nom: string }[]>([]);
   const [activeCyberId, setActiveCyberIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const canSwitchCyber =
+    isAdmin || (user?.cyberIds.length ?? 0) > 1;
+
   const refreshCybers = useCallback(async () => {
-    if (!token) {
+    if (!token || !user) {
       setCybers([]);
       setActiveCyberIdState(null);
       setLoading(false);
@@ -40,26 +53,32 @@ export function CyberProvider({ children }: { children: React.ReactNode }) {
 
     if (isAdmin) {
       const { cybers: list } = await fetchCybers(token);
-      setCybers(list);
+      const summaries = list.map((c) => ({ id: c.id, nom: c.nom }));
+      setCybers(summaries);
 
       const stored = localStorage.getItem(CYBER_KEY);
-      const validStored = list.find((c) => c.id === stored);
-      const nextId = validStored?.id ?? list[0]?.id ?? null;
+      const nextId = pickActiveId(
+        summaries.map((c) => c.id),
+        stored,
+      );
       setActiveCyberIdState(nextId);
       if (nextId) {
         localStorage.setItem(CYBER_KEY, nextId);
       }
-    } else if (user?.cyberId) {
-      setActiveCyberIdState(user.cyberId);
-      localStorage.setItem(CYBER_KEY, user.cyberId);
-      setCybers([]);
     } else {
-      setActiveCyberIdState(null);
-      setCybers([]);
+      const staffCybers = user.cybers;
+      setCybers(staffCybers);
+
+      const stored = localStorage.getItem(CYBER_KEY);
+      const nextId = pickActiveId(user.cyberIds, stored);
+      setActiveCyberIdState(nextId);
+      if (nextId) {
+        localStorage.setItem(CYBER_KEY, nextId);
+      }
     }
 
     setLoading(false);
-  }, [token, isAdmin, user?.cyberId]);
+  }, [token, isAdmin, user]);
 
   useEffect(() => {
     setLoading(true);
@@ -68,11 +87,13 @@ export function CyberProvider({ children }: { children: React.ReactNode }) {
 
   const setActiveCyberId = useCallback(
     (id: string) => {
-      if (!isAdmin) return;
-      setActiveCyberIdState(id);
-      localStorage.setItem(CYBER_KEY, id);
+      if (!canSwitchCyber) return;
+      if (isAdmin || user?.cyberIds.includes(id)) {
+        setActiveCyberIdState(id);
+        localStorage.setItem(CYBER_KEY, id);
+      }
     },
-    [isAdmin],
+    [canSwitchCyber, user?.cyberIds, isAdmin],
   );
 
   const activeCyber = useMemo(
@@ -88,6 +109,7 @@ export function CyberProvider({ children }: { children: React.ReactNode }) {
       loading,
       setActiveCyberId,
       refreshCybers,
+      canSwitchCyber,
     }),
     [
       activeCyberId,
@@ -96,6 +118,7 @@ export function CyberProvider({ children }: { children: React.ReactNode }) {
       loading,
       setActiveCyberId,
       refreshCybers,
+      canSwitchCyber,
     ],
   );
 

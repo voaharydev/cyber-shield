@@ -208,10 +208,29 @@ Seule exigence côté cybercafé : **Internet sortant** stable (HTTPS + WebSocke
 ## Authentification et multi-cyber
 
 - `POST /auth/login` → JWT (`Authorization: Bearer`)
-- Routes métier (`/config`, `/tickets`) : header **`X-Cyber-Id`** obligatoire pour l'admin ; imposé automatiquement pour le staff
+- Routes métier (`/config`, `/tickets`) : header **`X-Cyber-Id`** obligatoire (admin et staff)
 - `GET /cybers`, `POST /cybers` : réservés à l'**ADMIN**
+- `GET /users`, `POST /users`, `PATCH /users/:id`, `DELETE /users/:id` : gestion des **employés** (ADMIN)
 
-L'UI envoie automatiquement le token et le cyber actif (sélecteur dans le header pour l'admin).
+### Rôles
+
+| Rôle | Accès cybers | UI |
+|------|--------------|-----|
+| **ADMIN** | Tous les établissements (sélecteur) | `/cybers`, `/staff` |
+| **STAFF** | Un ou plusieurs cybers assignés | Sélecteur si plusieurs cybers |
+
+### Gestion des employés (admin)
+
+Page **Employés** : http://localhost:3001/staff
+
+- Créer un compte staff (identifiant, mot de passe)
+- Affecter à **un ou plusieurs** cybers (cases à cocher)
+- Modifier : réaffectation, reset mot de passe, activer/désactiver
+- Désactivation = soft-delete (`isActive: false`) — l'historique tickets/caisse est conservé
+
+Un staff avec plusieurs cybers bascule entre eux via le sélecteur du header (comme l'admin, mais liste filtrée).
+
+L'UI envoie automatiquement le token et le cyber actif (`X-Cyber-Id`).
 
 ## Règles de sécurité
 

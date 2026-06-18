@@ -43,19 +43,23 @@ export class CyberGuard implements CanActivate {
     }>();
 
     const user = request.user;
+    const headerCyber = request.headers['x-cyber-id'];
     let cyberId: string;
 
     if (user.role === Role.STAFF) {
-      if (!user.cyberId) {
+      if (user.cyberIds.length === 0) {
         throw new ForbiddenException('Employé sans cyber assigné');
       }
-      const headerCyber = request.headers['x-cyber-id'];
-      if (headerCyber && headerCyber !== user.cyberId) {
+      if (!headerCyber) {
+        throw new BadRequestException(
+          'Header X-Cyber-Id requis pour les opérations sur un établissement',
+        );
+      }
+      if (!user.cyberIds.includes(headerCyber)) {
         throw new ForbiddenException('Accès refusé à ce cyber');
       }
-      cyberId = user.cyberId;
+      cyberId = headerCyber;
     } else if (user.role === Role.ADMIN) {
-      const headerCyber = request.headers['x-cyber-id'];
       if (!headerCyber) {
         throw new BadRequestException(
           'Header X-Cyber-Id requis pour les opérations sur un établissement',

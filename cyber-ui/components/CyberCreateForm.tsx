@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { createCyber } from '@/lib/api';
 import { useCyber } from '@/lib/cyber-context';
 
-export function CyberCreateForm() {
+export function CyberCreateForm({ onCreated }: { onCreated?: () => void }) {
   const { refreshCybers, setActiveCyberId } = useCyber();
   const [nom, setNom] = useState('');
   const [nombrePostes, setNombrePostes] = useState(8);
@@ -35,6 +35,7 @@ export function CyberCreateForm() {
       });
       await refreshCybers();
       setActiveCyberId(cyber.id);
+      onCreated?.();
       setSuccess(true);
       setNom('');
       setTimeout(() => setSuccess(false), 3000);

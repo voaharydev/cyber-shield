@@ -5,6 +5,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload, RequestUser } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 
+const userWithCybersInclude = {
+  cybers: {
+    include: {
+      cyber: { select: { id: true, nom: true } },
+    },
+  },
+} as const;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -12,27 +20,48 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  private toRequestUser(user: {
-    id: string;
-    username: string;
-    role: JwtPayload['role'];
-    cyberId: string | null;
-  }): RequestUser {
+  private toRequestUser(
+    user: {
+      id: string;
+      username: string;
+      role: JwtPayload['role'];
+      isActive: boolean;
+      cybers: { cyber: { id: string; nom: string } }[];
+    },
+  ): RequestUser {
+    const cybers = user.cybers.map((uc) => ({
+      id: uc.cyber.id,
+      nom: uc.cyber.nom,
+    }));
     return {
       id: user.id,
       username: user.username,
       role: user.role,
-      cyberId: user.cyberId,
+      isActive: user.isActive,
+      cyberIds: cybers.map((c) => c.id),
+      cybers,
     };
+  }
+
+  private async findUserWithCybers(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      include: userWithCybersInclude,
+    });
   }
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { username: dto.username },
+      include: userWithCybersInclude,
     });
 
     if (!user) {
       throw new UnauthorizedException('Identifiants invalides');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Compte désactivé');
     }
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
@@ -44,7 +73,6 @@ export class AuthService {
       sub: user.id,
       username: user.username,
       role: user.role,
-      cyberId: user.cyberId,
     };
 
     return {
@@ -54,9 +82,7 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<RequestUser> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = await this.findUserWithCybers(userId);
 
     if (!user) {
       throw new UnauthorizedException('Utilisateur introuvable');

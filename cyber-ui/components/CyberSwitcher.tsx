@@ -5,11 +5,14 @@ import { useAuth } from '@/lib/auth';
 
 export function CyberSwitcher() {
   const { isAdmin } = useAuth();
-  const { cybers, activeCyberId, setActiveCyberId, loading } = useCyber();
-
-  if (!isAdmin) {
-    return null;
-  }
+  const {
+    cybers,
+    activeCyberId,
+    activeCyber,
+    setActiveCyberId,
+    loading,
+    canSwitchCyber,
+  } = useCyber();
 
   if (loading) {
     return (
@@ -21,6 +24,19 @@ export function CyberSwitcher() {
     return (
       <span className="text-sm text-amber-400">Aucun établissement</span>
     );
+  }
+
+  if (!canSwitchCyber && activeCyber) {
+    return (
+      <span className="text-sm text-zinc-400">
+        Établissement :{' '}
+        <span className="font-medium text-zinc-200">{activeCyber.nom}</span>
+      </span>
+    );
+  }
+
+  if (!isAdmin && !canSwitchCyber) {
+    return null;
   }
 
   return (

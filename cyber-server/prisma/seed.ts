@@ -24,24 +24,32 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { username: 'admin' },
-    update: { role: Role.ADMIN, cyberId: null },
+    update: { role: Role.ADMIN, isActive: true },
     create: {
       username: 'admin',
       passwordHash: adminHash,
       role: Role.ADMIN,
-      cyberId: null,
+      isActive: true,
     },
   });
 
   const staff = await prisma.user.upsert({
     where: { username: 'staff' },
-    update: { cyberId: cyber.id, role: Role.STAFF },
+    update: { role: Role.STAFF, isActive: true },
     create: {
       username: 'staff',
       passwordHash: staffHash,
       role: Role.STAFF,
-      cyberId: cyber.id,
+      isActive: true,
     },
+  });
+
+  await prisma.userCyber.upsert({
+    where: {
+      userId_cyberId: { userId: staff.id, cyberId: cyber.id },
+    },
+    update: {},
+    create: { userId: staff.id, cyberId: cyber.id },
   });
 
   console.log(`Seeded cyber: ${cyber.nom} (id: ${cyber.id})`);

@@ -1,0 +1,23 @@
+import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
+
+export class CreateStaffDto {
+  @IsString()
+  @MinLength(1)
+  username!: string;
+
+  @IsString()
+  @MinLength(6)
+  password!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  cyberIds!: string[];
+}

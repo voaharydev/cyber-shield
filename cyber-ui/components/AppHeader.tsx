@@ -41,12 +41,20 @@ export function AppHeader({ title, subtitle, children }: AppHeaderProps) {
             Tickets
           </Link>
           {isAdmin && (
-            <Link
-              href="/cybers"
-              className="text-sm text-sky-400 underline hover:text-sky-300"
-            >
-              Cybers
-            </Link>
+            <>
+              <Link
+                href="/cybers"
+                className="text-sm text-sky-400 underline hover:text-sky-300"
+              >
+                Cybers
+              </Link>
+              <Link
+                href="/staff"
+                className="text-sm text-violet-400 underline hover:text-violet-300"
+              >
+                Employés
+              </Link>
+            </>
           )}
           <Link
             href="/test-client"

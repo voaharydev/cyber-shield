@@ -4,12 +4,18 @@ export interface JwtPayload {
   sub: string;
   username: string;
   role: Role;
-  cyberId: string | null;
+}
+
+export interface CyberSummary {
+  id: string;
+  nom: string;
 }
 
 export interface RequestUser {
   id: string;
   username: string;
   role: Role;
-  cyberId: string | null;
+  isActive: boolean;
+  cyberIds: string[];
+  cybers: CyberSummary[];
 }
