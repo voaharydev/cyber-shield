@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum StatutTicket {
+  VALIDE
+  ACTIVE
+  EXPIRE
+}
+
+enum StatutPoste {
+  VERROUILLE
+  EN_COURS
+}
+
+enum TypePaiement {
+  ESPECES
+  MOBILE_MONEY
+  CARTE
+}
+
+model Cyber {
+  id            String   @id @default(cuid())
+  nom           String
+  nombrePostes  Int      @default(12)
+  dureesTicket  Int[]
+  prixParMinute Decimal  @default(100) @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users        User[]
+  tickets      Ticket[]
+  sessions     SessionOrdinateur[]
+  transactions TransactionCaisse[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(STAFF)
+  cyberId      String?
+  createdAt    DateTime @default(now())
+
+  cyber              Cyber?              @relation(fields: [cyberId], references: [id])
+  ticketsCrees       Ticket[]
+  transactionsCaisse TransactionCaisse[]
+}
+
+model Ticket {
+  id           String       @id @default(cuid())
+  cyberId      String
+  codeUnique   String
+  tempsInitial Int
+  tempsRestant Int
+  statut       StatutTicket @default(VALIDE)
+  creeParId    String
+  createdAt    DateTime     @default(now())
+
+  cyber    Cyber               @relation(fields: [cyberId], references: [id])
+  creePar  User                @relation(fields: [creeParId], references: [id])
+  sessions SessionOrdinateur[]
+
+  @@unique([cyberId, codeUnique])
+  @@index([cyberId, statut])
+  @@index([codeUnique])
+}
+
+model SessionOrdinateur {
+  id             String      @id @default(cuid())
+  cyberId        String
+  numeroPoste    Int
+  statut         StatutPoste @default(VERROUILLE)
+  ticketActuelId String?
+
+  cyber        Cyber   @relation(fields: [cyberId], references: [id])
+  ticketActuel Ticket? @relation(fields: [ticketActuelId], references: [id])
+
+  @@unique([cyberId, numeroPoste])
+  @@index([cyberId])
+}
+
+model TransactionCaisse {
+  id              String       @id @default(cuid())
+  cyberId         String
+  montant         Decimal      @db.Decimal(10, 2)
+  typePaiement    TypePaiement
+  description     String
+  dateTransaction DateTime     @default(now())
+  employeId       String
+
+  cyber   Cyber @relation(fields: [cyberId], references: [id])
+  employe User  @relation(fields: [employeId], references: [id])
+
+  @@index([cyberId, dateTransaction])
+}

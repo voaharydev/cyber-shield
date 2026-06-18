@@ -1,0 +1,74 @@
+<Window x:Class="CyberClient.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CyberControl Lock"
+        WindowStyle="None"
+        WindowState="Maximized"
+        Topmost="True"
+        ResizeMode="NoResize"
+        Background="#0A0A0B"
+        ShowInTaskbar="True">
+    <Grid>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock Text="🔒"
+                       FontSize="72"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,24"/>
+            <TextBlock Text="PC VERROUILLÉ"
+                       FontSize="36"
+                       FontWeight="Bold"
+                       Foreground="#FAFAFA"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,12"/>
+            <TextBlock Text="Entrez votre code à la caisse pour déverrouiller"
+                       FontSize="18"
+                       Foreground="#A1A1AA"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,32"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBox x:Name="CodeInput"
+                         Width="200"
+                         Height="40"
+                         FontSize="16"
+                         FontFamily="Consolas"
+                         Background="#18181B"
+                         Foreground="#FAFAFA"
+                         BorderBrush="#3F3F46"
+                         Padding="8,4"
+                         VerticalContentAlignment="Center"
+                         MaxLength="9"
+                         KeyDown="CodeInput_KeyDown"/>
+                <Button x:Name="UnlockButton"
+                        Content="Déverrouiller"
+                        Width="140"
+                        Height="40"
+                        Margin="12,0,0,0"
+                        Background="#059669"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontSize="14"
+                        Cursor="Hand"
+                        Click="UnlockButton_Click"/>
+            </StackPanel>
+            <TextBlock x:Name="StatusText"
+                       FontSize="14"
+                       Foreground="#EF4444"
+                       HorizontalAlignment="Center"
+                       Margin="0,16,0,0"
+                       Text=""/>
+            <TextBlock x:Name="TimeText"
+                       FontSize="24"
+                       FontFamily="Consolas"
+                       Foreground="#34D399"
+                       HorizontalAlignment="Center"
+                       Margin="0,24,0,0"
+                       Text=""/>
+            <TextBlock x:Name="ConnectionText"
+                       FontSize="12"
+                       Foreground="#71717A"
+                       HorizontalAlignment="Center"
+                       Margin="0,32,0,0"
+                       Text="Connexion au serveur..."/>
+        </StackPanel>
+    </Grid>
+</Window>
