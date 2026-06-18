@@ -86,6 +86,7 @@ model Ticket {
 
   @@unique([cyberId, codeUnique])
   @@index([cyberId, statut])
+  @@index([cyberId, createdAt])
   @@index([codeUnique])
 }
 

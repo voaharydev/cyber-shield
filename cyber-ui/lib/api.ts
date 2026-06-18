@@ -109,6 +109,46 @@ export interface UpdateStaffRequest {
   isActive?: boolean;
 }
 
+export type SalesGroupBy = 'day' | 'week' | 'month';
+
+export interface SalesStatsBucket {
+  label: string;
+  ticketCount: number;
+  revenue: number;
+}
+
+export interface SalesStatsByCyber {
+  cyberId: string;
+  nom: string;
+  ticketCount: number;
+  revenue: number;
+}
+
+export interface SalesStatsResponse {
+  groupBy: SalesGroupBy;
+  from: string;
+  to: string;
+  cyberId: string | null;
+  totals: { ticketCount: number; revenue: number };
+  averages: { ticketCount: number; revenue: number; bucketCount: number };
+  buckets: SalesStatsBucket[];
+  previousYear: {
+    from: string;
+    to: string;
+    totals: { ticketCount: number; revenue: number };
+    averages: { ticketCount: number; revenue: number; bucketCount: number };
+    buckets: SalesStatsBucket[];
+  };
+  byCyber?: SalesStatsByCyber[];
+}
+
+export interface FetchSalesStatsParams {
+  groupBy?: SalesGroupBy;
+  from?: string;
+  to?: string;
+  cyberId?: string;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5001';
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -285,4 +325,18 @@ export async function deactivateStaff(
     method: 'DELETE',
     skipCyberHeader: true,
   });
+}
+
+export async function fetchSalesStats(
+  params: FetchSalesStatsParams = {},
+): Promise<SalesStatsResponse> {
+  const search = new URLSearchParams();
+  if (params.groupBy) search.set('groupBy', params.groupBy);
+  if (params.from) search.set('from', params.from);
+  if (params.to) search.set('to', params.to);
+  if (params.cyberId) search.set('cyberId', params.cyberId);
+
+  const query = search.toString();
+  const path = query ? `/stats/sales?${query}` : '/stats/sales';
+  return apiFetch<SalesStatsResponse>(path, { skipCyberHeader: true });
 }

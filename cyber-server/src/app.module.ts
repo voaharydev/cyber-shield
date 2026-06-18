@@ -6,6 +6,7 @@ import { PcModule } from './pc/pc.module';
 import { ConfigModule } from './config/config.module';
 import { CyberModule } from './cyber/cyber.module';
 import { UsersModule } from './users/users.module';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { UsersModule } from './users/users.module';
     ConfigModule,
     CyberModule,
     UsersModule,
+    StatsModule,
   ],
   providers: [...authGlobalProviders],
 })

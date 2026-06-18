@@ -211,12 +211,13 @@ Seule exigence côté cybercafé : **Internet sortant** stable (HTTPS + WebSocke
 - Routes métier (`/config`, `/tickets`) : header **`X-Cyber-Id`** obligatoire (admin et staff)
 - `GET /cybers`, `POST /cybers` : réservés à l'**ADMIN**
 - `GET /users`, `POST /users`, `PATCH /users/:id`, `DELETE /users/:id` : gestion des **employés** (ADMIN)
+- `GET /stats/sales` : statistiques de ventes tickets + CA (ADMIN, `cyberId` optionnel en query)
 
 ### Rôles
 
 | Rôle | Accès cybers | UI |
 |------|--------------|-----|
-| **ADMIN** | Tous les établissements (sélecteur) | `/cybers`, `/staff` |
+| **ADMIN** | Tous les établissements (sélecteur) | `/cybers`, `/staff`, `/stats` |
 | **STAFF** | Un ou plusieurs cybers assignés | Sélecteur si plusieurs cybers |
 
 ### Gestion des employés (admin)
@@ -230,7 +231,25 @@ Page **Employés** : http://localhost:3001/staff
 
 Un staff avec plusieurs cybers bascule entre eux via le sélecteur du header (comme l'admin, mais liste filtrée).
 
-L'UI envoie automatiquement le token et le cyber actif (`X-Cyber-Id`).
+### Statistiques de ventes (admin)
+
+Page **Statistiques** : http://localhost:3001/stats
+
+- **Établissement actif** : tickets vendus et chiffre d'affaires pour le cyber sélectionné
+- **Tous les établissements** : totaux consolidés + tableau récap par cyber
+- Graphiques (tickets + CA) avec courbe N-1 et ligne de moyenne
+- Comparaison année précédente (même période) et moyennes par jour/semaine/mois
+- Agrégation par jour, semaine ou mois ; presets 7j / 30j / 90j / 12 mois
+
+API : `GET /stats/sales?groupBy=day&from=2026-05-18&to=2026-06-17&cyberId=...`
+
+- `groupBy` : `day` | `week` | `month` (défaut `day`)
+- `from` / `to` : dates ISO (défauts selon `groupBy` si omis)
+- `cyberId` : optionnel ; absent = tous les cybers
+
+Réponse inclut `averages`, `previousYear` (totaux + buckets N-1) pour comparaison et graphiques.
+
+L'UI envoie automatiquement le token (sans `X-Cyber-Id` pour cette route admin).
 
 ## Règles de sécurité
 

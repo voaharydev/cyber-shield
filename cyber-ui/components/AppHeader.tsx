@@ -54,6 +54,12 @@ export function AppHeader({ title, subtitle, children }: AppHeaderProps) {
               >
                 Employés
               </Link>
+              <Link
+                href="/stats"
+                className="text-sm text-orange-400 underline hover:text-orange-300"
+              >
+                Statistiques
+              </Link>
             </>
           )}
           <Link
