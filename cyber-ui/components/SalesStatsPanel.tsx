@@ -8,6 +8,7 @@ import {
   SalesStatsResponse,
 } from '@/lib/api';
 import { useCyber } from '@/lib/cyber-context';
+import { exportSalesStatsCsv } from '@/lib/export-sales-stats';
 
 type StatsTab = 'active' | 'all';
 
@@ -208,6 +209,23 @@ export function SalesStatsPanel() {
           className="rounded-lg bg-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-600 disabled:opacity-50"
         >
           Actualiser
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            stats &&
+            exportSalesStatsCsv(stats, {
+              scopeLabel:
+                tab === 'active' && activeCyber
+                  ? activeCyber.nom
+                  : 'Tous les établissements',
+            })
+          }
+          disabled={loading || !stats}
+          className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+        >
+          Exporter CSV
         </button>
       </div>
 

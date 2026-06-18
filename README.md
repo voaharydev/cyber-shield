@@ -43,6 +43,29 @@ Comptes créés par le seed :
 | `admin` | `admin123` | ADMIN | Tous les cybers (sélecteur UI) |
 | `staff` | `staff123` | STAFF | Cyber par défaut uniquement |
 
+### Données de démo (dev)
+
+Pour peupler l'application avec un jeu de test complet (3 cybers, ~8 000 tickets/transactions sur 90 jours + N-1, statuts variés) :
+
+```bash
+cd cyber-server
+npm run seed:demo   # reset + régénération (dev uniquement)
+```
+
+> **Attention** : ce script supprime tous les tickets, transactions, cybers démo et employés démo existants, puis régénère le jeu complet. Refusé en production sauf `DEMO_SEED_CONFIRM=true`.
+
+Comptes staff supplémentaires créés :
+
+| Utilisateur | Mot de passe | Cybers assignés |
+|-------------|--------------|-----------------|
+| `staff_nord` | `staff123` | Cyber Nord |
+| `staff_sud` | `staff123` | Cyber Sud |
+| `staff_multi` | `staff123` | Cyber Nord + Cyber Sud |
+
+Établissements de démo : `cyber_legacy_default` (CyberControl), `cyber_demo_nord`, `cyber_demo_sud`.
+
+Vérifier ensuite : `/stats` (graphiques + N-1), `/tickets`, `/cybers`, `/staff`.
+
 ### cyber-ui
 
 ```bash
@@ -240,6 +263,7 @@ Page **Statistiques** : http://localhost:3001/stats
 - Graphiques (tickets + CA) avec courbe N-1 et ligne de moyenne
 - Comparaison année précédente (même période) et moyennes par jour/semaine/mois
 - Agrégation par jour, semaine ou mois ; presets 7j / 30j / 90j / 12 mois
+- Bouton **Exporter CSV** : résumé, détail par période et récap par établissement selon les filtres actifs
 
 API : `GET /stats/sales?groupBy=day&from=2026-05-18&to=2026-06-17&cyberId=...`
 
