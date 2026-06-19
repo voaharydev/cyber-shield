@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   StatutPoste,
+  StatutTicket,
   TypePaiement,
   TypeSession,
 } from '@prisma/client';
@@ -172,6 +173,83 @@ export class SessionService {
       success: true,
       numeroPoste,
       montantEncaisse: montant,
+    };
+  }
+
+  async reinitialiserPoste(cyberId: string, numeroPoste: number) {
+    const session = await this.prisma.sessionOrdinateur.findUnique({
+      where: { cyberId_numeroPoste: { cyberId, numeroPoste } },
+      include: { ticketActuel: true },
+    });
+    if (!session) {
+      throw new NotFoundException(`Poste ${numeroPoste} introuvable`);
+    }
+
+    await this.pcService.kickPcConnection(cyberId, numeroPoste);
+
+    if (session.statut === StatutPoste.A_PAYER) {
+      throw new BadRequestException(
+        'Encaissez avant réinitialisation',
+      );
+    }
+
+    if (
+      session.statut === StatutPoste.EN_COURS &&
+      session.typeSession === TypeSession.POSTPAID
+    ) {
+      const result = await this.arreterSessionPostPayee(cyberId, numeroPoste);
+      return {
+        success: true,
+        numeroPoste,
+        action: 'postpaid_stopped' as const,
+        montantDu: result.montantDu,
+      };
+    }
+
+    if (
+      session.statut === StatutPoste.EN_COURS &&
+      session.typeSession === TypeSession.PREPAID
+    ) {
+      if (!session.ticketActuelId || !session.ticketActuel) {
+        throw new BadRequestException(
+          'Session prépayée sans ticket associé',
+        );
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.ticket.update({
+          where: { id: session.ticketActuelId! },
+          data: { statut: StatutTicket.VALIDE },
+        });
+
+        await tx.sessionOrdinateur.update({
+          where: { cyberId_numeroPoste: { cyberId, numeroPoste } },
+          data: {
+            statut: StatutPoste.VERROUILLE,
+            typeSession: null,
+            ticketActuelId: null,
+            tempsDebut: null,
+            tempsFin: null,
+            montantDu: null,
+          },
+        });
+      });
+
+      this.pcService.sendToPc(cyberId, numeroPoste, { event: 'command_lock' });
+      await this.pcService.broadcastGlobalUpdate(cyberId);
+
+      return {
+        success: true,
+        numeroPoste,
+        action: 'prepaid_restored' as const,
+        ticketCode: session.ticketActuel.codeUnique,
+      };
+    }
+
+    return {
+      success: true,
+      numeroPoste,
+      action: 'kicked' as const,
     };
   }
 }

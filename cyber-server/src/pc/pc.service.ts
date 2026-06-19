@@ -82,6 +82,21 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
     void this.broadcastGlobalUpdate(cyberId);
   }
 
+  async kickPcConnection(cyberId: string, numeroPoste: number) {
+    const key = pcKey(cyberId, numeroPoste);
+    const client = this.pcConnections.get(key);
+    if (client) {
+      this.pcConnections.delete(key);
+      if (
+        client.readyState === WebSocket.OPEN ||
+        client.readyState === WebSocket.CONNECTING
+      ) {
+        client.close(1000, 'Reset par la caisse');
+      }
+    }
+    await this.broadcastGlobalUpdate(cyberId);
+  }
+
   registerDashboard(cyberId: string, client: WebSocket) {
     let set = this.dashboardConnections.get(cyberId);
     if (!set) {

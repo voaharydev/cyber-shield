@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { TypePaiement } from '@/lib/api';
 import {
   encaisserPostpaidSession,
+  resetPoste,
   startPostpaidSession,
   stopPostpaidSession,
 } from '@/lib/session-api';
@@ -55,6 +56,42 @@ function formatAr(amount: number): string {
   return `${amount.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Ar`;
 }
 
+function getResetConfig(
+  poste: PosteState,
+): { label: string; message: string } | null {
+  if (poste.statut === 'A_PAYER') {
+    return null;
+  }
+
+  if (poste.statut === 'EN_COURS' && poste.typeSession === 'PREPAID') {
+    const ticket = poste.ticketCode ? ` (${poste.ticketCode})` : '';
+    return {
+      label: 'Réinitialiser le poste',
+      message: `Réinitialiser PC ${poste.numeroPoste} ? Le ticket${ticket} sera remis en VALIDE avec les minutes restantes.`,
+    };
+  }
+
+  if (poste.statut === 'VERROUILLE' && poste.connected) {
+    return {
+      label: 'Réinitialiser la connexion',
+      message: `Couper la connexion WebSocket du PC ${poste.numeroPoste} ?`,
+    };
+  }
+
+  if (
+    poste.statut === 'EN_COURS' &&
+    poste.typeSession === 'POSTPAID' &&
+    !poste.connected
+  ) {
+    return {
+      label: 'Réinitialiser',
+      message: `Arrêter la session libre du PC ${poste.numeroPoste} (hors ligne) et passer en attente de paiement ?`,
+    };
+  }
+
+  return null;
+}
+
 interface PosteCardProps {
   poste: PosteState;
 }
@@ -67,6 +104,7 @@ function PosteCard({ poste }: PosteCardProps) {
   const [typePaiement, setTypePaiement] = useState<TypePaiement>('ESPECES');
 
   const pulse = poste.statut === 'A_PAYER';
+  const resetConfig = getResetConfig(poste);
 
   async function runAction(action: () => Promise<unknown>) {
     setLoading(true);
@@ -78,6 +116,12 @@ function PosteCard({ poste }: PosteCardProps) {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleReset() {
+    if (!resetConfig) return;
+    if (!window.confirm(resetConfig.message)) return;
+    void runAction(() => resetPoste(poste.numeroPoste));
   }
 
   return (
@@ -186,6 +230,17 @@ function PosteCard({ poste }: PosteCardProps) {
               Encaisser & Libérer le poste
             </button>
           </>
+        )}
+
+        {resetConfig && (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleReset}
+            className="w-full rounded-lg border border-zinc-600 py-2 text-sm text-zinc-300 hover:border-zinc-500 hover:bg-zinc-800/50 disabled:opacity-50"
+          >
+            {resetConfig.label}
+          </button>
         )}
       </div>
 

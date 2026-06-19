@@ -47,4 +47,12 @@ export class SessionController {
       dto.typePaiement,
     );
   }
+
+  @Post(':poste/reset')
+  resetPoste(
+    @ActiveCyberId() cyberId: string,
+    @Param('poste', ParseIntPipe) poste: number,
+  ) {
+    return this.sessionService.reinitialiserPoste(cyberId, poste);
+  }
 }

@@ -21,3 +21,9 @@ export async function encaisserPostpaidSession(
     body: JSON.stringify({ typePaiement }),
   });
 }
+
+export async function resetPoste(
+  poste: number,
+): Promise<{ success: boolean; action?: string; ticketCode?: string }> {
+  return apiFetch(`/sessions/${poste}/reset`, { method: 'POST' });
+}

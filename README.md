@@ -313,8 +313,18 @@ Mode **paiement à la fin** : démarrage sans ticket, facturation à l'arrêt, p
 | Démarrer | `POST /sessions/postpayee/:poste/start` ou WS `try_postpaid_start` |
 | Arrêter (lock PC) | `POST /sessions/postpayee/:poste/stop` ou WS `stop_postpaid` |
 | Encaisser | `POST /sessions/postpayee/:poste/encaisser` — `{ "typePaiement": "ESPECES" }` |
+| Réinitialiser | `POST /sessions/:poste/reset` — débloquer un poste qui ne répond plus |
 
 Dashboard : carte bleue (chrono + montant estimé), carte orange clignotante (`A_PAYER` + Encaisser).
+
+**Réinitialiser un poste** (bouton sur le dashboard) :
+
+| État | Effet |
+|------|-------|
+| Prépayé `EN_COURS` | Poste `VERROUILLE`, ticket remis en `VALIDE` (minutes restantes conservées) |
+| Session libre `EN_COURS` hors ligne | Arrêt + facturation → `A_PAYER` |
+| `VERROUILLE` mais connecté (WS zombie) | Coupure de la connexion WebSocket |
+| `A_PAYER` | Refusé — encaissement obligatoire |
 
 ## Règles de sécurité
 
