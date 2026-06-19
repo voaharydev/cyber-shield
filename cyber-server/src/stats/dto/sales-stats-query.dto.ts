@@ -23,4 +23,8 @@ export class SalesStatsQueryDto {
   @IsOptional()
   @IsString()
   cyberId?: string;
+
+  @IsOptional()
+  @IsString()
+  cyberIds?: string;
 }

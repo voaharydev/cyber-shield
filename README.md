@@ -259,19 +259,28 @@ Un staff avec plusieurs cybers bascule entre eux via le sélecteur du header (co
 Page **Statistiques** : http://localhost:3001/stats
 
 - **Établissement actif** : tickets vendus et chiffre d'affaires pour le cyber sélectionné
-- **Tous les établissements** : totaux consolidés + tableau récap par cyber
+- **Tous les établissements** : totaux consolidés + tableau comparatif par cyber (avec N-1)
+- **Comparer** : sélection de plusieurs établissements, tableau détaillé, graphiques en barres CA/tickets
 - Graphiques (tickets + CA) avec courbe N-1 et ligne de moyenne
 - Comparaison année précédente (même période) et moyennes par jour/semaine/mois
 - Agrégation par jour, semaine ou mois ; presets 7j / 30j / 90j / 12 mois
-- Bouton **Exporter CSV** : résumé, détail par période et récap par établissement selon les filtres actifs
+- Bouton **Exporter CSV** : résumé, détail par période et comparaison par établissement (N-1 + deltas)
 
 API : `GET /stats/sales?groupBy=day&from=2026-05-18&to=2026-06-17&cyberId=...`
 
+Comparaison multi-cybers :
+
+```
+GET /stats/sales?from=2026-05-18&to=2026-06-17&cyberIds=cyber_demo_nord,cyber_demo_sud
+```
+
 - `groupBy` : `day` | `week` | `month` (défaut `day`)
 - `from` / `to` : dates ISO (défauts selon `groupBy` si omis)
-- `cyberId` : optionnel ; absent = tous les cybers
+- `cyberId` : un seul établissement (mode actif)
+- `cyberIds` : liste séparée par des virgules (prioritaire sur `cyberId`) — totaux agrégés du groupe + `byCyber` détaillé
+- sans filtre : tous les cybers
 
-Réponse inclut `averages`, `previousYear` (totaux + buckets N-1) pour comparaison et graphiques.
+Réponse inclut `averages`, `previousYear` (totaux + buckets N-1), `byCyber` (par établissement avec N-1) pour comparaison et graphiques.
 
 L'UI envoie automatiquement le token (sans `X-Cyber-Id` pour cette route admin).
 

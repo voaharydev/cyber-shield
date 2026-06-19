@@ -121,10 +121,30 @@ function buildCsvContent(
 
   if (stats.byCyber && stats.byCyber.length > 0) {
     lines.push('');
-    lines.push(row(['Par établissement']));
-    lines.push(row(['Établissement', 'Tickets', 'CA (Ar)']));
+    lines.push(row(['Comparaison par établissement']));
+    lines.push(
+      row([
+        'Établissement',
+        'Tickets',
+        'CA (Ar)',
+        'Tickets N-1',
+        'CA N-1 (Ar)',
+        'Variation tickets',
+        'Variation CA',
+      ]),
+    );
     for (const cyber of stats.byCyber) {
-      lines.push(row([cyber.nom, cyber.ticketCount, cyber.revenue]));
+      lines.push(
+        row([
+          cyber.nom,
+          cyber.ticketCount,
+          cyber.revenue,
+          cyber.previousYear.ticketCount,
+          cyber.previousYear.revenue,
+          formatDelta(cyber.ticketCount, cyber.previousYear.ticketCount),
+          formatDelta(cyber.revenue, cyber.previousYear.revenue),
+        ]),
+      );
     }
   }
 

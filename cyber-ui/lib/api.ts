@@ -132,6 +132,8 @@ export interface SalesStatsByCyber {
   nom: string;
   ticketCount: number;
   revenue: number;
+  averages: { ticketCount: number; revenue: number };
+  previousYear: { ticketCount: number; revenue: number };
 }
 
 export interface SalesStatsResponse {
@@ -139,6 +141,7 @@ export interface SalesStatsResponse {
   from: string;
   to: string;
   cyberId: string | null;
+  cyberIds: string[] | null;
   totals: { ticketCount: number; revenue: number };
   averages: { ticketCount: number; revenue: number; bucketCount: number };
   buckets: SalesStatsBucket[];
@@ -157,6 +160,7 @@ export interface FetchSalesStatsParams {
   from?: string;
   to?: string;
   cyberId?: string;
+  cyberIds?: string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5001';
@@ -345,6 +349,7 @@ export async function fetchSalesStats(
   if (params.from) search.set('from', params.from);
   if (params.to) search.set('to', params.to);
   if (params.cyberId) search.set('cyberId', params.cyberId);
+  if (params.cyberIds) search.set('cyberIds', params.cyberIds);
 
   const query = search.toString();
   const path = query ? `/stats/sales?${query}` : '/stats/sales';

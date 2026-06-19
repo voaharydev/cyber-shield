@@ -1,16 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { CyberCompareCharts } from '@/components/CyberCompareCharts';
 import { SalesStatsCharts } from '@/components/SalesStatsCharts';
 import {
+  CyberSummary,
+  fetchCybers,
   fetchSalesStats,
   SalesGroupBy,
+  SalesStatsByCyber,
   SalesStatsResponse,
 } from '@/lib/api';
 import { useCyber } from '@/lib/cyber-context';
 import { exportSalesStatsCsv } from '@/lib/export-sales-stats';
 
-type StatsTab = 'active' | 'all';
+type StatsTab = 'active' | 'all' | 'compare';
 
 type PeriodPreset = '7d' | '30d' | '90d' | '12m';
 
@@ -71,6 +75,26 @@ function deltaColor(current: number, previous: number): string {
   return current > previous ? 'text-emerald-400' : 'text-red-400';
 }
 
+function scopeLabel(
+  tab: StatsTab,
+  activeCyberName: string | undefined,
+  allCybers: CyberSummary[],
+  selectedCyberIds: string[],
+): string {
+  if (tab === 'active' && activeCyberName) {
+    return activeCyberName;
+  }
+  if (tab === 'compare') {
+    const names = allCybers
+      .filter((c) => selectedCyberIds.includes(c.id))
+      .map((c) => c.nom);
+    return names.length > 0
+      ? `Comparaison: ${names.join(', ')}`
+      : 'Comparaison';
+  }
+  return 'Tous les établissements';
+}
+
 interface StatCardProps {
   title: string;
   value: string;
@@ -96,14 +120,68 @@ function StatCard({
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
       <p className="text-sm text-zinc-500">{title}</p>
       <p className={`mt-2 text-3xl font-bold ${valueClass}`}>{value}</p>
-      <p className="mt-2 text-sm text-zinc-400">
-        Moyenne {average}
-      </p>
+      <p className="mt-2 text-sm text-zinc-400">Moyenne {average}</p>
       <div className="mt-4 border-t border-zinc-800 pt-3">
-        <p className="text-xs text-zinc-500">Même période N-1 ({previousPeriod})</p>
+        <p className="text-xs text-zinc-500">
+          Même période N-1 ({previousPeriod})
+        </p>
         <p className="mt-1 text-lg font-medium text-zinc-300">{previousValue}</p>
         <p className={`mt-1 text-sm ${deltaClass}`}>{delta} vs N-1</p>
       </div>
+    </div>
+  );
+}
+
+function CyberComparisonTable({ rows }: { rows: SalesStatsByCyber[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-zinc-800 text-zinc-500">
+            <th className="pb-2 pr-4 font-medium">Établissement</th>
+            <th className="pb-2 pr-4 font-medium text-right">Tickets</th>
+            <th className="pb-2 pr-4 font-medium text-right">CA (Ar)</th>
+            <th className="pb-2 pr-4 font-medium text-right">Tickets N-1</th>
+            <th className="pb-2 pr-4 font-medium text-right">CA N-1 (Ar)</th>
+            <th className="pb-2 pr-4 font-medium text-right">Δ tickets</th>
+            <th className="pb-2 font-medium text-right">Δ CA</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.cyberId}
+              className="border-b border-zinc-800/50 text-zinc-300"
+            >
+              <td className="py-2 pr-4">{row.nom}</td>
+              <td className="py-2 pr-4 text-right">{row.ticketCount}</td>
+              <td className="py-2 pr-4 text-right">{formatAr(row.revenue)}</td>
+              <td className="py-2 pr-4 text-right text-zinc-500">
+                {row.previousYear.ticketCount}
+              </td>
+              <td className="py-2 pr-4 text-right text-zinc-500">
+                {formatAr(row.previousYear.revenue)}
+              </td>
+              <td
+                className={`py-2 pr-4 text-right ${deltaColor(
+                  row.ticketCount,
+                  row.previousYear.ticketCount,
+                )}`}
+              >
+                {formatDelta(row.ticketCount, row.previousYear.ticketCount)}
+              </td>
+              <td
+                className={`py-2 text-right ${deltaColor(
+                  row.revenue,
+                  row.previousYear.revenue,
+                )}`}
+              >
+                {formatDelta(row.revenue, row.previousYear.revenue)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -116,18 +194,43 @@ export function SalesStatsPanel() {
   const [stats, setStats] = useState<SalesStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [allCybers, setAllCybers] = useState<CyberSummary[]>([]);
+  const [selectedCyberIds, setSelectedCyberIds] = useState<string[]>([]);
+  const [compareInitialized, setCompareInitialized] = useState(false);
+
+  useEffect(() => {
+    if (tab !== 'compare') return;
+    void fetchCybers()
+      .then(({ cybers }) => {
+        setAllCybers(cybers);
+        if (!compareInitialized) {
+          setSelectedCyberIds(cybers.map((c) => c.id));
+          setCompareInitialized(true);
+        }
+      })
+      .catch(() => setAllCybers([]));
+  }, [tab, compareInitialized]);
 
   const load = useCallback(async () => {
+    if (tab === 'compare' && selectedCyberIds.length === 0) {
+      setStats(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const range = computeRange(preset);
-      const cyberId = tab === 'active' ? activeCyberId ?? undefined : undefined;
       const data = await fetchSalesStats({
         groupBy,
         from: range.from,
         to: range.to,
-        cyberId,
+        cyberId:
+          tab === 'active' ? (activeCyberId ?? undefined) : undefined,
+        cyberIds:
+          tab === 'compare' ? selectedCyberIds.join(',') : undefined,
       });
       setStats(data);
     } catch (err) {
@@ -136,13 +239,20 @@ export function SalesStatsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [tab, groupBy, preset, activeCyberId]);
+  }, [tab, groupBy, preset, activeCyberId, selectedCyberIds]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const unit = averageLabel(groupBy);
+  const showByCyber = tab === 'all' || tab === 'compare';
+
+  function toggleCyber(id: string) {
+    setSelectedCyberIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -172,7 +282,67 @@ export function SalesStatsPanel() {
         >
           Tous les établissements
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('compare')}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            tab === 'compare'
+              ? 'bg-violet-600 text-white'
+              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+          }`}
+        >
+          Comparer
+        </button>
       </div>
+
+      {tab === 'compare' && (
+        <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-zinc-300">
+              Établissements à comparer
+            </h2>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedCyberIds(allCybers.map((c) => c.id))
+                }
+                className="text-xs text-violet-400 underline hover:text-violet-300"
+              >
+                Tout sélectionner
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCyberIds([])}
+                className="text-xs text-zinc-500 underline hover:text-zinc-300"
+              >
+                Tout désélectionner
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {allCybers.map((cyber) => (
+              <label
+                key={cyber.id}
+                className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-300"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedCyberIds.includes(cyber.id)}
+                  onChange={() => toggleCyber(cyber.id)}
+                  className="rounded border-zinc-600"
+                />
+                {cyber.nom}
+              </label>
+            ))}
+          </div>
+          {selectedCyberIds.length === 0 && (
+            <p className="mt-3 text-sm text-amber-400">
+              Sélectionnez au moins un établissement pour comparer.
+            </p>
+          )}
+        </section>
+      )}
 
       <div className="flex flex-wrap items-end gap-4">
         <label className="flex flex-col gap-1 text-sm text-zinc-400">
@@ -216,10 +386,12 @@ export function SalesStatsPanel() {
           onClick={() =>
             stats &&
             exportSalesStatsCsv(stats, {
-              scopeLabel:
-                tab === 'active' && activeCyber
-                  ? activeCyber.nom
-                  : 'Tous les établissements',
+              scopeLabel: scopeLabel(
+                tab,
+                activeCyber?.nom,
+                allCybers,
+                selectedCyberIds,
+              ),
             })
           }
           disabled={loading || !stats}
@@ -238,6 +410,14 @@ export function SalesStatsPanel() {
           <p className="text-sm text-zinc-500">
             Du {stats.from} au {stats.to}
             {stats.cyberId && activeCyber ? ` — ${activeCyber.nom}` : ''}
+            {tab === 'compare' && selectedCyberIds.length > 0 && (
+              <span>
+                {' '}
+                — {selectedCyberIds.length} établissement
+                {selectedCyberIds.length > 1 ? 's' : ''} sélectionné
+                {selectedCyberIds.length > 1 ? 's' : ''}
+              </span>
+            )}
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -276,6 +456,24 @@ export function SalesStatsPanel() {
               valueClass="text-amber-400"
             />
           </div>
+
+          {showByCyber && stats.byCyber && stats.byCyber.length > 0 && (
+            <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+              <h2 className="mb-4 text-lg font-medium text-zinc-300">
+                Comparaison par établissement
+              </h2>
+              <CyberComparisonTable rows={stats.byCyber} />
+            </section>
+          )}
+
+          {showByCyber && stats.byCyber && stats.byCyber.length > 0 && (
+            <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+              <h2 className="mb-4 text-lg font-medium text-zinc-300">
+                Graphiques comparatifs
+              </h2>
+              <CyberCompareCharts rows={stats.byCyber} />
+            </section>
+          )}
 
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
             <h2 className="mb-4 text-lg font-medium text-zinc-300">Graphiques</h2>
@@ -335,44 +533,11 @@ export function SalesStatsPanel() {
               </div>
             )}
           </section>
-
-          {tab === 'all' && stats.byCyber && stats.byCyber.length > 0 && (
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <h2 className="mb-4 text-lg font-medium text-zinc-300">
-                Par établissement
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-800 text-zinc-500">
-                      <th className="pb-2 pr-4 font-medium">Établissement</th>
-                      <th className="pb-2 pr-4 font-medium text-right">
-                        Tickets
-                      </th>
-                      <th className="pb-2 font-medium text-right">CA (Ar)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.byCyber.map((row) => (
-                      <tr
-                        key={row.cyberId}
-                        className="border-b border-zinc-800/50 text-zinc-300"
-                      >
-                        <td className="py-2 pr-4">{row.nom}</td>
-                        <td className="py-2 pr-4 text-right">
-                          {row.ticketCount}
-                        </td>
-                        <td className="py-2 text-right">
-                          {formatAr(row.revenue)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
         </>
+      ) : tab === 'compare' && selectedCyberIds.length === 0 ? (
+        <p className="text-zinc-500">
+          Sélectionnez au moins un établissement pour afficher les statistiques.
+        </p>
       ) : null}
     </div>
   );

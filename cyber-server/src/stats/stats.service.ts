@@ -14,6 +14,8 @@ export interface SalesByCyberDto {
   nom: string;
   ticketCount: number;
   revenue: number;
+  averages: { ticketCount: number; revenue: number };
+  previousYear: { ticketCount: number; revenue: number };
 }
 
 export interface SalesStatsResponse {
@@ -21,6 +23,7 @@ export interface SalesStatsResponse {
   from: string;
   to: string;
   cyberId: string | null;
+  cyberIds: string[] | null;
   totals: { ticketCount: number; revenue: number };
   averages: { ticketCount: number; revenue: number; bucketCount: number };
   buckets: SalesBucketDto[];
@@ -314,56 +317,117 @@ export class StatsService {
     return filled;
   }
 
-  private async totalsByCyber(
+  private aggregateStatsRanges(
+    statsList: Array<{
+      totals: { ticketCount: number; revenue: number };
+      averages: { ticketCount: number; revenue: number; bucketCount: number };
+      buckets: SalesBucketDto[];
+    }>,
     from: Date,
     to: Date,
-  ): Promise<SalesByCyberDto[]> {
-    const ticketRows = await this.prisma.$queryRaw<
-      { cyberId: string; count: number }[]
-    >`
-      SELECT "cyberId", COUNT(*)::int AS count
-      FROM "Ticket"
-      WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
-      GROUP BY "cyberId"`;
+    groupBy: SalesGroupBy,
+  ): {
+    totals: { ticketCount: number; revenue: number };
+    averages: { ticketCount: number; revenue: number; bucketCount: number };
+    buckets: SalesBucketDto[];
+  } {
+    const merged = new Map<string, SalesBucketDto>();
+    let ticketCount = 0;
+    let revenue = 0;
 
-    const revenueRows = await this.prisma.$queryRaw<
-      { cyberId: string; revenue: Prisma.Decimal }[]
-    >`
-      SELECT "cyberId", COALESCE(SUM("montant"), 0)::numeric AS revenue
-      FROM "TransactionCaisse"
-      WHERE "dateTransaction" >= ${from} AND "dateTransaction" < ${to}
-      GROUP BY "cyberId"`;
-
-    const cybers = await this.prisma.cyber.findMany({
-      select: { id: true, nom: true },
-    });
-    const nomById = new Map(cybers.map((c) => [c.id, c.nom]));
-
-    const byCyber = new Map<string, SalesByCyberDto>();
-    for (const row of ticketRows) {
-      byCyber.set(row.cyberId, {
-        cyberId: row.cyberId,
-        nom: nomById.get(row.cyberId) ?? row.cyberId,
-        ticketCount: row.count,
-        revenue: 0,
-      });
-    }
-    for (const row of revenueRows) {
-      const existing = byCyber.get(row.cyberId);
-      const revenue = Number(row.revenue);
-      if (existing) {
-        existing.revenue = revenue;
-      } else {
-        byCyber.set(row.cyberId, {
-          cyberId: row.cyberId,
-          nom: nomById.get(row.cyberId) ?? row.cyberId,
-          ticketCount: 0,
-          revenue,
-        });
+    for (const stats of statsList) {
+      ticketCount += stats.totals.ticketCount;
+      revenue += stats.totals.revenue;
+      for (const bucket of stats.buckets) {
+        const existing = merged.get(bucket.label);
+        if (existing) {
+          existing.ticketCount += bucket.ticketCount;
+          existing.revenue += bucket.revenue;
+        } else {
+          merged.set(bucket.label, { ...bucket });
+        }
       }
     }
 
-    return [...byCyber.values()].sort((a, b) => a.nom.localeCompare(b.nom));
+    const buckets = this.fillBucketGaps(
+      [...merged.values()].sort((a, b) => a.label.localeCompare(b.label)),
+      from,
+      to,
+      groupBy,
+    );
+    const bucketCount = this.countBucketsInRange(from, to, groupBy);
+
+    return {
+      totals: { ticketCount, revenue },
+      averages: this.computeAverages({ ticketCount, revenue }, bucketCount),
+      buckets,
+    };
+  }
+
+  private async resolveValidCyberIds(ids: string[]): Promise<string[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const cybers = await this.prisma.cyber.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+      orderBy: { nom: 'asc' },
+    });
+    const valid = new Set(cybers.map((c) => c.id));
+    return ids.filter((id) => valid.has(id));
+  }
+
+  private async statsByCyber(
+    groupBy: SalesGroupBy,
+    from: Date,
+    to: Date,
+    endExclusive: Date,
+    prevFrom: Date,
+    prevTo: Date,
+    prevEndExclusive: Date,
+    filterIds?: string[],
+  ): Promise<SalesByCyberDto[]> {
+    const cybers = await this.prisma.cyber.findMany({
+      where: filterIds?.length ? { id: { in: filterIds } } : undefined,
+      orderBy: { nom: 'asc' },
+      select: { id: true, nom: true },
+    });
+
+    return Promise.all(
+      cybers.map(async (cyber) => {
+        const [current, previous] = await Promise.all([
+          this.buildStatsForRange(
+            groupBy,
+            from,
+            to,
+            endExclusive,
+            cyber.id,
+          ),
+          this.buildStatsForRange(
+            groupBy,
+            prevFrom,
+            prevTo,
+            prevEndExclusive,
+            cyber.id,
+          ),
+        ]);
+
+        return {
+          cyberId: cyber.id,
+          nom: cyber.nom,
+          ticketCount: current.totals.ticketCount,
+          revenue: current.totals.revenue,
+          averages: {
+            ticketCount: current.averages.ticketCount,
+            revenue: current.averages.revenue,
+          },
+          previousYear: {
+            ticketCount: previous.totals.ticketCount,
+            revenue: previous.totals.revenue,
+          },
+        };
+      }),
+    );
   }
 
   async getSalesStats(dto: SalesStatsQueryDto): Promise<SalesStatsResponse> {
@@ -379,28 +443,73 @@ export class StatsService {
     endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
     endExclusive.setUTCHours(0, 0, 0, 0);
 
-    const cyberId = dto.cyberId?.trim() || undefined;
+    const parsedCyberIds =
+      dto.cyberIds
+        ?.split(',')
+        .map((id) => id.trim())
+        .filter(Boolean) ?? [];
+    const filterIds =
+      parsedCyberIds.length > 0
+        ? await this.resolveValidCyberIds(parsedCyberIds)
+        : undefined;
+
+    const cyberId =
+      filterIds && filterIds.length > 0
+        ? undefined
+        : dto.cyberId?.trim() || undefined;
 
     const prevFrom = this.shiftYear(from, -1);
     const prevTo = this.shiftYear(to, -1);
     const prevEndExclusive = this.shiftYear(endExclusive, -1);
 
-    const [current, previous] = await Promise.all([
-      this.buildStatsForRange(groupBy, from, to, endExclusive, cyberId),
-      this.buildStatsForRange(
-        groupBy,
+    let current: Awaited<ReturnType<StatsService['buildStatsForRange']>>;
+    let previous: Awaited<ReturnType<StatsService['buildStatsForRange']>>;
+
+    if (filterIds && filterIds.length > 0) {
+      const [currentList, previousList] = await Promise.all([
+        Promise.all(
+          filterIds.map((id) =>
+            this.buildStatsForRange(groupBy, from, to, endExclusive, id),
+          ),
+        ),
+        Promise.all(
+          filterIds.map((id) =>
+            this.buildStatsForRange(
+              groupBy,
+              prevFrom,
+              prevTo,
+              prevEndExclusive,
+              id,
+            ),
+          ),
+        ),
+      ]);
+      current = this.aggregateStatsRanges(currentList, from, to, groupBy);
+      previous = this.aggregateStatsRanges(
+        previousList,
         prevFrom,
         prevTo,
-        prevEndExclusive,
-        cyberId,
-      ),
-    ]);
+        groupBy,
+      );
+    } else {
+      [current, previous] = await Promise.all([
+        this.buildStatsForRange(groupBy, from, to, endExclusive, cyberId),
+        this.buildStatsForRange(
+          groupBy,
+          prevFrom,
+          prevTo,
+          prevEndExclusive,
+          cyberId,
+        ),
+      ]);
+    }
 
     const response: SalesStatsResponse = {
       groupBy,
       from: from.toISOString().slice(0, 10),
       to: to.toISOString().slice(0, 10),
       cyberId: cyberId ?? null,
+      cyberIds: filterIds && filterIds.length > 0 ? filterIds : null,
       totals: current.totals,
       averages: current.averages,
       buckets: current.buckets,
@@ -414,7 +523,16 @@ export class StatsService {
     };
 
     if (!cyberId) {
-      response.byCyber = await this.totalsByCyber(from, endExclusive);
+      response.byCyber = await this.statsByCyber(
+        groupBy,
+        from,
+        to,
+        endExclusive,
+        prevFrom,
+        prevTo,
+        prevEndExclusive,
+        filterIds,
+      );
     }
 
     return response;
