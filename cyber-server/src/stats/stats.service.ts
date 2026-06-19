@@ -387,8 +387,12 @@ export class StatsService {
     prevEndExclusive: Date,
     filterIds?: string[],
   ): Promise<SalesByCyberDto[]> {
+    const where = filterIds?.length
+      ? { id: { in: filterIds } }
+      : { archivedAt: null };
+
     const cybers = await this.prisma.cyber.findMany({
-      where: filterIds?.length ? { id: { in: filterIds } } : undefined,
+      where,
       orderBy: { nom: 'asc' },
       select: { id: true, nom: true },
     });

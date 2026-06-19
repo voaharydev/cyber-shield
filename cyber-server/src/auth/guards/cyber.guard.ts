@@ -76,6 +76,9 @@ export class CyberGuard implements CanActivate {
     if (!cyber) {
       throw new BadRequestException('Cyber introuvable');
     }
+    if (!cyber.isActive) {
+      throw new ForbiddenException('Établissement désactivé ou archivé');
+    }
 
     request.cyberId = cyberId;
     return true;

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/websockets';
 import { IncomingMessage } from 'http';
 import { WebSocket } from 'ws';
+import { PrismaService } from '../prisma/prisma.service';
 import { PcService } from './pc.service';
 
 interface ClientMeta {
@@ -19,9 +20,19 @@ export class PcGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(PcGateway.name);
   private readonly clientMeta = new WeakMap<WebSocket, ClientMeta>();
 
-  constructor(private readonly pcService: PcService) {}
+  constructor(
+    private readonly pcService: PcService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   handleConnection(client: WebSocket, request: IncomingMessage) {
+    void this.handleConnectionAsync(client, request);
+  }
+
+  private async handleConnectionAsync(
+    client: WebSocket,
+    request: IncomingMessage,
+  ) {
     try {
       const host = request.headers.host ?? 'localhost';
       const url = new URL(request.url ?? '/cyber', `http://${host}`);
@@ -31,6 +42,15 @@ export class PcGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       if (!cyberId) {
         client.close(1008, 'Paramètre cyber requis');
+        return;
+      }
+
+      const cyber = await this.prisma.cyber.findUnique({
+        where: { id: cyberId },
+        select: { isActive: true },
+      });
+      if (!cyber?.isActive) {
+        client.close(1008, 'Établissement désactivé ou archivé');
         return;
       }
 

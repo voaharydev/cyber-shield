@@ -43,13 +43,15 @@ enum TypeMouvementFidelite {
 }
 
 model Cyber {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   nom           String
-  nombrePostes  Int      @default(12)
+  nombrePostes  Int       @default(12)
   dureesTicket  Int[]
-  prixParMinute Decimal  @default(100) @db.Decimal(10, 2)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  prixParMinute Decimal   @default(100) @db.Decimal(10, 2)
+  isActive      Boolean   @default(true)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   staffAssignments    UserCyber[]
   tickets             Ticket[]

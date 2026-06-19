@@ -8,7 +8,9 @@ import { LoginDto } from './dto/login.dto';
 const userWithCybersInclude = {
   cybers: {
     include: {
-      cyber: { select: { id: true, nom: true } },
+      cyber: {
+        select: { id: true, nom: true, isActive: true, archivedAt: true },
+      },
     },
   },
 } as const;
@@ -26,13 +28,15 @@ export class AuthService {
       username: string;
       role: JwtPayload['role'];
       isActive: boolean;
-      cybers: { cyber: { id: string; nom: string } }[];
+      cybers: { cyber: { id: string; nom: string; isActive: boolean; archivedAt: Date | null } }[];
     },
   ): RequestUser {
-    const cybers = user.cybers.map((uc) => ({
-      id: uc.cyber.id,
-      nom: uc.cyber.nom,
-    }));
+    const cybers = user.cybers
+      .filter((uc) => uc.cyber.isActive && uc.cyber.archivedAt === null)
+      .map((uc) => ({
+        id: uc.cyber.id,
+        nom: uc.cyber.nom,
+      }));
     return {
       id: user.id,
       username: user.username,

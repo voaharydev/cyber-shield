@@ -57,11 +57,18 @@ export class UsersService {
 
   private async validateCyberIds(cyberIds: string[]) {
     const uniqueIds = [...new Set(cyberIds)];
-    const count = await this.prisma.cyber.count({
+    const cybers = await this.prisma.cyber.findMany({
       where: { id: { in: uniqueIds } },
+      select: { id: true, isActive: true, archivedAt: true },
     });
-    if (count !== uniqueIds.length) {
+    if (cybers.length !== uniqueIds.length) {
       throw new BadRequestException('Un ou plusieurs cybers sont introuvables');
+    }
+    const invalid = cybers.find((c) => !c.isActive || c.archivedAt !== null);
+    if (invalid) {
+      throw new BadRequestException(
+        'Impossible d\'affecter un employé à un établissement désactivé ou archivé',
+      );
     }
     return uniqueIds;
   }

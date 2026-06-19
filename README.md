@@ -415,7 +415,27 @@ Page **Paramètres** : http://localhost:3001/settings
 
 Créer un **second cyber** (admin) : http://localhost:3001/cybers
 
+### Cycle de vie d'un établissement (admin)
+
+Page **Cybers** : modifier, désactiver, archiver, réactiver et dupliquer.
+
+| Action | Effet |
+|--------|-------|
+| Modifier | Nom, postes, durées ticket, prix/min |
+| Désactiver | `isActive = false` — bloque caisse, WebSocket et sélecteur |
+| Archiver | Désactivation + `archivedAt` — masqué des listes actives |
+| Réactiver | Remet l'établissement actif (`isActive = true`, `archivedAt = null`) |
+| Dupliquer | Nouveau cyber avec la même config, sans tickets ni staff |
+
+Impossible de désactiver/archiver si un poste est `EN_COURS` ou `A_PAYER`. La duplication ne copie pas l'historique (tickets, transactions).
+
 API :
+
+- `GET /cybers?includeInactive=true&includeArchived=true` — liste filtrée (défaut : actifs non archivés)
+- `GET /cybers/:id`, `PATCH /cybers/:id`
+- `POST /cybers/:id/deactivate`, `/archive`, `/reactivate`, `/duplicate`
+
+API (config établissement actif) :
 
 - `GET /config`, `PATCH /config` — cyber actif (`X-Cyber-Id`)
 - `GET /cybers`, `POST /cybers` — admin uniquement

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppHeader } from '@/components/AppHeader';
 import { CyberCreateForm } from '@/components/CyberCreateForm';
+import { CyberListItem } from '@/components/CyberListItem';
 import { useAuth } from '@/lib/auth';
 import { CyberSummary, fetchCybers } from '@/lib/api';
 
@@ -12,16 +13,21 @@ export default function CybersPage() {
   const router = useRouter();
   const [cybers, setCybers] = useState<CyberSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [includeInactive, setIncludeInactive] = useState(true);
+  const [includeArchived, setIncludeArchived] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { cybers: list } = await fetchCybers();
+      const { cybers: list } = await fetchCybers(undefined, {
+        includeInactive,
+        includeArchived,
+      });
       setCybers(list);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [includeInactive, includeArchived]);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -39,14 +45,36 @@ export default function CybersPage() {
     <div className="min-h-screen">
       <AppHeader
         title="Gestion des cybers"
-        subtitle="Créer et lister les établissements"
+        subtitle="Créer, modifier, désactiver, archiver et dupliquer les établissements"
       />
 
       <main className="mx-auto grid max-w-7xl gap-8 px-6 py-8 lg:grid-cols-2">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-          <h2 className="mb-4 text-lg font-medium text-zinc-300">
-            Établissements existants
-          </h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-medium text-zinc-300">
+              Établissements
+            </h2>
+            <div className="flex flex-wrap gap-3 text-sm text-zinc-400">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={includeInactive}
+                  onChange={(e) => setIncludeInactive(e.target.checked)}
+                  className="rounded border-zinc-600"
+                />
+                Désactivés
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={includeArchived}
+                  onChange={(e) => setIncludeArchived(e.target.checked)}
+                  className="rounded border-zinc-600"
+                />
+                Archivés
+              </label>
+            </div>
+          </div>
           {loading ? (
             <p className="text-zinc-500">Chargement...</p>
           ) : cybers.length === 0 ? (
@@ -54,18 +82,11 @@ export default function CybersPage() {
           ) : (
             <ul className="space-y-3">
               {cybers.map((cyber) => (
-                <li
+                <CyberListItem
                   key={cyber.id}
-                  className="rounded-lg border border-zinc-800 bg-zinc-950/50 px-4 py-3"
-                >
-                  <p className="font-medium text-zinc-200">{cyber.nom}</p>
-                  <p className="mt-1 font-mono text-xs text-zinc-500">
-                    {cyber.id}
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    {cyber.nombrePostes} postes — {cyber.prixParMinute} Ar/min
-                  </p>
-                </li>
+                  cyber={cyber}
+                  onChanged={() => void load()}
+                />
               ))}
             </ul>
           )}

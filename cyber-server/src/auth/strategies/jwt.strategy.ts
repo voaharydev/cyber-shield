@@ -20,7 +20,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       include: {
         cybers: {
           include: {
-            cyber: { select: { id: true, nom: true } },
+            cyber: {
+              select: { id: true, nom: true, isActive: true, archivedAt: true },
+            },
           },
         },
       },
@@ -30,10 +32,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Utilisateur introuvable ou désactivé');
     }
 
-    const cybers = user.cybers.map((uc) => ({
-      id: uc.cyber.id,
-      nom: uc.cyber.nom,
-    }));
+    const cybers = user.cybers
+      .filter((uc) => uc.cyber.isActive && uc.cyber.archivedAt === null)
+      .map((uc) => ({
+        id: uc.cyber.id,
+        nom: uc.cyber.nom,
+      }));
 
     return {
       id: user.id,

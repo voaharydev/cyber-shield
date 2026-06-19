@@ -86,7 +86,10 @@ export interface CyberSummary {
   id: string;
   nom: string;
   nombrePostes: number;
+  dureesTicket: number[];
   prixParMinute: number;
+  isActive: boolean;
+  archivedAt: string | null;
   createdAt: string;
 }
 
@@ -95,6 +98,18 @@ export interface CreateCyberRequest {
   nombrePostes: number;
   dureesTicket: number[];
   prixParMinute: number;
+}
+
+export interface UpdateCyberRequest {
+  nom?: string;
+  nombrePostes?: number;
+  dureesTicket?: number[];
+  prixParMinute?: number;
+}
+
+export interface FetchCybersParams {
+  includeInactive?: boolean;
+  includeArchived?: boolean;
 }
 
 export interface StaffUser {
@@ -241,11 +256,21 @@ export async function fetchMe(token: string): Promise<{ user: AuthUser }> {
 
 export async function fetchCybers(
   token?: string | null,
+  params: FetchCybersParams = {},
 ): Promise<{ cybers: CyberSummary[] }> {
-  return apiFetch<{ cybers: CyberSummary[] }>('/cybers', {
+  const search = new URLSearchParams();
+  if (params.includeInactive) search.set('includeInactive', 'true');
+  if (params.includeArchived) search.set('includeArchived', 'true');
+  const query = search.toString();
+  const path = query ? `/cybers?${query}` : '/cybers';
+  return apiFetch<{ cybers: CyberSummary[] }>(path, {
     token,
     skipCyberHeader: true,
   });
+}
+
+export async function fetchCyber(id: string): Promise<CyberSummary> {
+  return apiFetch<CyberSummary>(`/cybers/${id}`, { skipCyberHeader: true });
 }
 
 export async function createCyber(
@@ -254,6 +279,49 @@ export async function createCyber(
   return apiFetch<CyberSummary>('/cybers', {
     method: 'POST',
     body: JSON.stringify(dto),
+    skipCyberHeader: true,
+  });
+}
+
+export async function updateCyber(
+  id: string,
+  dto: UpdateCyberRequest,
+): Promise<CyberSummary> {
+  return apiFetch<CyberSummary>(`/cybers/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dto),
+    skipCyberHeader: true,
+  });
+}
+
+export async function deactivateCyber(id: string): Promise<CyberSummary> {
+  return apiFetch<CyberSummary>(`/cybers/${id}/deactivate`, {
+    method: 'POST',
+    skipCyberHeader: true,
+  });
+}
+
+export async function archiveCyber(id: string): Promise<CyberSummary> {
+  return apiFetch<CyberSummary>(`/cybers/${id}/archive`, {
+    method: 'POST',
+    skipCyberHeader: true,
+  });
+}
+
+export async function reactivateCyber(id: string): Promise<CyberSummary> {
+  return apiFetch<CyberSummary>(`/cybers/${id}/reactivate`, {
+    method: 'POST',
+    skipCyberHeader: true,
+  });
+}
+
+export async function duplicateCyber(
+  id: string,
+  nom?: string,
+): Promise<CyberSummary> {
+  return apiFetch<CyberSummary>(`/cybers/${id}/duplicate`, {
+    method: 'POST',
+    body: JSON.stringify(nom ? { nom } : {}),
     skipCyberHeader: true,
   });
 }
