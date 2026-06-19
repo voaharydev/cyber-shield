@@ -3,6 +3,7 @@ import {
   Role,
   StatutPoste,
   StatutTicket,
+  TypeMouvementFidelite,
   TypePaiement,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -132,7 +133,9 @@ async function resetDemoData(): Promise<void> {
       data: { ticketActuelId: null, statut: StatutPoste.VERROUILLE },
     });
     await tx.transactionCaisse.deleteMany({});
+    await tx.mouvementFidelite.deleteMany({});
     await tx.ticket.deleteMany({});
+    await tx.clientFidelite.deleteMany({});
     await tx.sessionOrdinateur.deleteMany({
       where: { cyberId: { not: LEGACY_CYBER_ID } },
     });
@@ -449,6 +452,50 @@ async function printSummary(
   console.log('  staff_multi / staff123 (STAFF — Nord + Sud)');
 }
 
+async function seedDemoFidelite(staffId: string): Promise<void> {
+  await prisma.fideliteConfig.upsert({
+    where: { id: 'default' },
+    update: { actif: true },
+    create: {
+      id: 'default',
+      pointsParMinuteAchat: 1,
+      pointsPourMinuteGratuite: 10,
+      pointsPour100Ar: 5,
+      actif: true,
+    },
+  });
+
+  const demoClients = [
+    { telephone: '261321234567', nom: 'Rivo', points: 120 },
+    { telephone: '261331112233', nom: 'Hery', points: 85 },
+    { telephone: '261341234567', nom: 'Miora', points: 200 },
+  ];
+
+  for (const demo of demoClients) {
+    const client = await prisma.clientFidelite.upsert({
+      where: { telephone: demo.telephone },
+      update: { nom: demo.nom, isActive: true },
+      create: {
+        telephone: demo.telephone,
+        nom: demo.nom,
+      },
+    });
+
+    await prisma.mouvementFidelite.create({
+      data: {
+        cyberId: LEGACY_CYBER_ID,
+        clientId: client.id,
+        type: TypeMouvementFidelite.GAIN_ACHAT,
+        points: demo.points,
+        employeId: staffId,
+        description: `Gain achat ${demo.points} pts (démo)`,
+      },
+    });
+  }
+
+  console.log(`Seeded ${demoClients.length} clients fidélité démo`);
+}
+
 async function main() {
   assertSafeEnvironment();
 
@@ -460,6 +507,9 @@ async function main() {
 
   console.log('Phase 3: cybers, postes et staff...');
   const contexts = await seedCybersAndStaff(staffId);
+
+  console.log('Phase 3b: clients fidélité démo...');
+  await seedDemoFidelite(staffId);
 
   console.log('Phase 4: génération tickets + transactions...');
   const usedCodes = new Set<string>();

@@ -275,11 +275,39 @@ Réponse inclut `averages`, `previousYear` (totaux + buckets N-1) pour comparais
 
 L'UI envoie automatiquement le token (sans `X-Cyber-Id` pour cette route admin).
 
+### Fidélité réseau
+
+Programme commun à **tous les établissements** — un client identifié par **téléphone** cumule des points dans n'importe quel cyber.
+
+**Configuration (admin)** : http://localhost:3001/fidelite
+
+| Paramètre | Défaut | Description |
+|-----------|--------|-------------|
+| `pointsParMinuteAchat` | 1 | Points gagnés par minute achetée |
+| `pointsPourMinuteGratuite` | 10 | Coût en points d'1 minute bonus |
+| `pointsPour100Ar` | 5 | Coût en points de 100 Ar de réduction |
+| `actif` | true | Activer/désactiver le programme |
+
+**Caisse** (`/dashboard`) : champ téléphone → Rechercher / Inscrire → utiliser des points (minutes gratuites ou réduction Ar) lors de la vente.
+
+API :
+
+- `GET /fidelite/config`, `PATCH /fidelite/config` — admin
+- `GET /fidelite/clients/lookup?telephone=` — staff + `X-Cyber-Id`
+- `POST /fidelite/clients` — inscrire un client
+- `GET /fidelite/clients/:id/mouvements` — historique
+- `POST /tickets` — champs optionnels `telephone`, `echangePoints: { type, points }`
+
+Clients démo (`npm run seed:demo`) : `032 12 345 67` (120 pts), `033 11 122 33` (85 pts), `034 12 345 67` (200 pts).
+
+Le journal `MouvementFidelite` est append-only ; le solde = somme des mouvements.
+
 ## Règles de sécurité
 
 1. **Append-only caisse** — aucun UPDATE/DELETE sur `TransactionCaisse`
-2. **Ticket = transaction** — création ticket atomique avec encaissement
-3. **Master Timer** — décompte temps uniquement côté serveur
+2. **Append-only fidélité** — aucun UPDATE/DELETE sur `MouvementFidelite`
+3. **Ticket = transaction** — création ticket atomique avec encaissement
+4. **Master Timer** — décompte temps uniquement côté serveur
 
 ## Tester un ticket (sans client WPF)
 

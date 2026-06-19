@@ -73,6 +73,20 @@ async function main() {
   console.log(
     `Seeded ${cyber.nombrePostes} postes for cyber ${cyber.id} (1-${cyber.nombrePostes})`,
   );
+
+  await prisma.fideliteConfig.upsert({
+    where: { id: 'default' },
+    update: {},
+    create: {
+      id: 'default',
+      pointsParMinuteAchat: 1,
+      pointsPourMinuteGratuite: 10,
+      pointsPour100Ar: 5,
+      actif: true,
+    },
+  });
+
+  console.log('Seeded FideliteConfig (réseau)');
 }
 
 main()

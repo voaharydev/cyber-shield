@@ -30,6 +30,12 @@ enum TypePaiement {
   CARTE
 }
 
+enum TypeMouvementFidelite {
+  GAIN_ACHAT
+  ECHANGE_MINUTES
+  ECHANGE_REDUCTION
+}
+
 model Cyber {
   id            String   @id @default(cuid())
   nom           String
@@ -39,10 +45,11 @@ model Cyber {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  staffAssignments UserCyber[]
-  tickets          Ticket[]
-  sessions         SessionOrdinateur[]
-  transactions     TransactionCaisse[]
+  staffAssignments    UserCyber[]
+  tickets             Ticket[]
+  sessions            SessionOrdinateur[]
+  transactions        TransactionCaisse[]
+  mouvementsFidelite  MouvementFidelite[]
 }
 
 model User {
@@ -53,9 +60,10 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
-  cybers             UserCyber[]
-  ticketsCrees       Ticket[]
-  transactionsCaisse TransactionCaisse[]
+  cybers               UserCyber[]
+  ticketsCrees         Ticket[]
+  transactionsCaisse   TransactionCaisse[]
+  mouvementsFidelite   MouvementFidelite[]
 }
 
 model UserCyber {
@@ -70,24 +78,72 @@ model UserCyber {
   @@index([cyberId])
 }
 
-model Ticket {
-  id           String       @id @default(cuid())
-  cyberId      String
-  codeUnique   String
-  tempsInitial Int
-  tempsRestant Int
-  statut       StatutTicket @default(VALIDE)
-  creeParId    String
-  createdAt    DateTime     @default(now())
+model FideliteConfig {
+  id                       String   @id @default("default")
+  pointsParMinuteAchat     Int      @default(1)
+  pointsPourMinuteGratuite Int      @default(10)
+  pointsPour100Ar          Int      @default(5)
+  actif                    Boolean  @default(true)
+  updatedAt                DateTime @updatedAt
+}
 
-  cyber    Cyber               @relation(fields: [cyberId], references: [id])
-  creePar  User                @relation(fields: [creeParId], references: [id])
-  sessions SessionOrdinateur[]
+model ClientFidelite {
+  id        String   @id @default(cuid())
+  telephone String   @unique
+  nom       String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tickets    Ticket[]
+  mouvements MouvementFidelite[]
+}
+
+model MouvementFidelite {
+  id          String                @id @default(cuid())
+  cyberId     String
+  clientId    String
+  type        TypeMouvementFidelite
+  points      Int
+  ticketId    String?
+  employeId   String
+  description String
+  createdAt   DateTime              @default(now())
+
+  cyber   Cyber          @relation(fields: [cyberId], references: [id])
+  client  ClientFidelite @relation(fields: [clientId], references: [id])
+  ticket  Ticket?        @relation(fields: [ticketId], references: [id])
+  employe User           @relation(fields: [employeId], references: [id])
+
+  @@index([clientId, createdAt])
+  @@index([cyberId, createdAt])
+}
+
+model Ticket {
+  id               String       @id @default(cuid())
+  cyberId          String
+  codeUnique       String
+  tempsInitial     Int
+  tempsRestant     Int
+  statut           StatutTicket @default(VALIDE)
+  creeParId        String
+  clientFideliteId String?
+  pointsGagnes     Int?
+  pointsUtilises   Int?
+  minutesBonus     Int          @default(0)
+  reductionAr      Decimal?     @db.Decimal(10, 2)
+  createdAt        DateTime     @default(now())
+
+  cyber          Cyber               @relation(fields: [cyberId], references: [id])
+  creePar        User                @relation(fields: [creeParId], references: [id])
+  clientFidelite ClientFidelite?     @relation(fields: [clientFideliteId], references: [id])
+  sessions       SessionOrdinateur[]
+  mouvements     MouvementFidelite[]
 
   @@unique([cyberId, codeUnique])
   @@index([cyberId, statut])
   @@index([cyberId, createdAt])
   @@index([codeUnique])
+  @@index([clientFideliteId])
 }
 
 model SessionOrdinateur {

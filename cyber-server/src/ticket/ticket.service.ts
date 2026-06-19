@@ -6,6 +6,7 @@ import {
 import { Prisma, StatutTicket } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '../config/config.service';
+import { FideliteService } from '../fidelite/fidelite.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ListTicketsDto } from './dto/list-tickets.dto';
 
@@ -40,6 +41,7 @@ export class TicketService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly fideliteService: FideliteService,
   ) {}
 
   private toStatutLabel(statut: StatutTicket): string {
@@ -159,15 +161,21 @@ export class TicketService {
 
   async createTicket(cyberId: string, employeId: string, dto: CreateTicketDto) {
     const config = await this.configService.getByCyberId(cyberId);
-    const montant = config.prixParMinute * dto.tempsInitial;
+
+    const plan = await this.fideliteService.prepareVente(
+      dto.tempsInitial,
+      config.prixParMinute,
+      dto.telephone,
+      dto.echangePoints,
+    );
 
     return this.prisma.$transaction(async (tx) => {
       await tx.transactionCaisse.create({
         data: {
           cyberId,
-          montant,
+          montant: plan.montant,
           typePaiement: dto.typePaiement,
-          description: `Vente ticket ${dto.tempsInitial} min @ ${config.prixParMinute} Ar/min`,
+          description: plan.caisseDescription,
           employeId,
         },
       });
@@ -178,12 +186,31 @@ export class TicketService {
         data: {
           cyberId,
           codeUnique,
-          tempsInitial: dto.tempsInitial,
-          tempsRestant: dto.tempsInitial,
+          tempsInitial: plan.tempsInitialTicket,
+          tempsRestant: plan.tempsInitialTicket,
           statut: StatutTicket.VALIDE,
           creeParId: employeId,
+          clientFideliteId: plan.clientId,
+          pointsGagnes: plan.pointsGagnes > 0 ? plan.pointsGagnes : null,
+          pointsUtilises: plan.pointsUtilises > 0 ? plan.pointsUtilises : null,
+          minutesBonus: plan.minutesBonus,
+          reductionAr: plan.reductionAr > 0 ? plan.reductionAr : null,
         },
       });
+
+      if (plan.clientId && (plan.pointsGagnes > 0 || plan.pointsUtilises > 0)) {
+        await this.fideliteService.applyMouvementsInTransaction(tx, {
+          cyberId,
+          clientId: plan.clientId,
+          employeId,
+          ticketId: ticket.id,
+          pointsGagnes: plan.pointsGagnes,
+          pointsUtilises: plan.pointsUtilises,
+          echangeType: plan.echangeType,
+          minutesBonus: plan.minutesBonus,
+          reductionAr: plan.reductionAr,
+        });
+      }
 
       return {
         ticket: {
@@ -192,6 +219,11 @@ export class TicketService {
           tempsInitial: ticket.tempsInitial,
           tempsRestant: ticket.tempsRestant,
           statut: ticket.statut,
+          minutesBonus: ticket.minutesBonus,
+          reductionAr: plan.reductionAr,
+          pointsGagnes: plan.pointsGagnes,
+          pointsUtilises: plan.pointsUtilises,
+          montantEncaisse: plan.montant,
         },
       };
     });

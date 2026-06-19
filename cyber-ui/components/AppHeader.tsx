@@ -60,6 +60,12 @@ export function AppHeader({ title, subtitle, children }: AppHeaderProps) {
               >
                 Statistiques
               </Link>
+              <Link
+                href="/fidelite"
+                className="text-sm text-violet-400 underline hover:text-violet-300"
+              >
+                Fidélité
+              </Link>
             </>
           )}
           <Link

@@ -19,6 +19,11 @@ export interface LoginResponse {
 export interface CreateTicketRequest {
   tempsInitial: number;
   typePaiement: TypePaiement;
+  telephone?: string;
+  echangePoints?: {
+    type: 'MINUTES' | 'REDUCTION';
+    points: number;
+  };
 }
 
 export interface TicketResponse {
@@ -28,6 +33,11 @@ export interface TicketResponse {
     tempsInitial: number;
     tempsRestant: number;
     statut: string;
+    minutesBonus?: number;
+    reductionAr?: number;
+    pointsGagnes?: number;
+    pointsUtilises?: number;
+    montantEncaisse?: number;
   };
 }
 
