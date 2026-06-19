@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "ts-node prisma/seed.ts",
     "seed:demo": "ts-node prisma/seed-demo.ts",
-    "test:unlock": "ts-node scripts/test-pc-client.ts"
+    "test:unlock": "ts-node scripts/test-pc-client.ts",
+    "test:pc": "ts-node scripts/test-pc-client.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

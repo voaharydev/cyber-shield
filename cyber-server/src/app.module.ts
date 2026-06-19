@@ -8,6 +8,7 @@ import { CyberModule } from './cyber/cyber.module';
 import { UsersModule } from './users/users.module';
 import { StatsModule } from './stats/stats.module';
 import { FideliteModule } from './fidelite/fidelite.module';
+import { SessionModule } from './session/session.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { FideliteModule } from './fidelite/fidelite.module';
     UsersModule,
     StatsModule,
     FideliteModule,
+    SessionModule,
   ],
   providers: [...authGlobalProviders],
 })

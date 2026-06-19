@@ -12,10 +12,11 @@ public partial class MainWindow : Window
     private readonly string _serverHost;
     private readonly int _serverPort;
     private readonly string _cyberId;
-  private readonly int _numeroPoste;
+    private readonly int _numeroPoste;
     private ClientWebSocket? _webSocket;
     private CancellationTokenSource? _cts;
     private bool _isUnlocked;
+    private bool _isPostpaidSession;
 
     public MainWindow()
     {
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
 
         Visibility = Visibility.Visible;
         _isUnlocked = false;
+        _isPostpaidSession = false;
 
         Loaded += async (_, _) =>
         {
@@ -169,10 +171,20 @@ public partial class MainWindow : Window
                 switch (eventName)
                 {
                     case "command_lock":
+                    case "session_stopped":
                         ShowLockScreen();
                         break;
                     case "unlock_success":
-                        HideLockScreen();
+                        var isPostpaid = root.TryGetProperty("typeSession", out var ts)
+                            && ts.GetString() == "POSTPAID";
+                        if (isPostpaid)
+                        {
+                            EnterPostpaidMode();
+                        }
+                        else
+                        {
+                            HideLockScreen();
+                        }
                         break;
                     case "unlock_rejected":
                         var msg = root.TryGetProperty("message", out var m)
@@ -181,7 +193,18 @@ public partial class MainWindow : Window
                         StatusText.Text = msg ?? "Code refusé";
                         break;
                     case "time_update":
-                        if (root.TryGetProperty("tempsRestant", out var temps))
+                        if (root.TryGetProperty("typeSession", out var typeSession)
+                            && typeSession.GetString() == "POSTPAID")
+                        {
+                            if (root.TryGetProperty("tempsEcoule", out var elapsed))
+                            {
+                                var amount = root.TryGetProperty("montantEstime", out var amt)
+                                    ? amt.GetInt32()
+                                    : 0;
+                                UpdatePostpaidDisplay(elapsed.GetInt32(), amount);
+                            }
+                        }
+                        else if (root.TryGetProperty("tempsRestant", out var temps))
                         {
                             TimeText.Text = $"{temps.GetInt32()} min restantes";
                         }
@@ -200,7 +223,11 @@ public partial class MainWindow : Window
     private void ShowLockScreen()
     {
         _isUnlocked = false;
+        _isPostpaidSession = false;
         Visibility = Visibility.Visible;
+        WindowState = WindowState.Maximized;
+        LockPanel.Visibility = Visibility.Visible;
+        PostpaidBarPanel.Visibility = Visibility.Collapsed;
         CodeInput.Text = string.Empty;
         StatusText.Text = string.Empty;
         TimeText.Text = string.Empty;
@@ -209,8 +236,27 @@ public partial class MainWindow : Window
     private void HideLockScreen()
     {
         _isUnlocked = true;
+        _isPostpaidSession = false;
         Visibility = Visibility.Collapsed;
         StatusText.Text = string.Empty;
+    }
+
+    private void EnterPostpaidMode()
+    {
+        _isUnlocked = true;
+        _isPostpaidSession = true;
+        Visibility = Visibility.Visible;
+        WindowState = WindowState.Maximized;
+        Background = System.Windows.Media.Brushes.Transparent;
+        LockPanel.Visibility = Visibility.Collapsed;
+        PostpaidBarPanel.Visibility = Visibility.Visible;
+        UpdatePostpaidDisplay(0, 0);
+    }
+
+    private void UpdatePostpaidDisplay(int minutes, int amountAr)
+    {
+        PostpaidTimeText.Text = $"Session libre — {minutes} min";
+        PostpaidAmountText.Text = $"{amountAr:N0} Ar (estimé)";
     }
 
     private void UpdateConnectionStatus(string text)
@@ -218,7 +264,7 @@ public partial class MainWindow : Window
         ConnectionText.Text = text;
     }
 
-    public async Task TryUnlockAsync(string code)
+    private async Task SendEventAsync(string eventName, object? extra = null)
     {
         if (_webSocket?.State != WebSocketState.Open)
         {
@@ -228,11 +274,20 @@ public partial class MainWindow : Window
 
         try
         {
-            var payload = JsonSerializer.Serialize(new
+            string payload;
+            if (extra != null)
             {
-                @event = "try_unlock",
-                code = code.Trim().ToUpperInvariant(),
-            });
+                var dict = new Dictionary<string, object> { ["event"] = eventName };
+                foreach (var prop in extra.GetType().GetProperties())
+                {
+                    dict[prop.Name] = prop.GetValue(extra) ?? "";
+                }
+                payload = JsonSerializer.Serialize(dict);
+            }
+            else
+            {
+                payload = JsonSerializer.Serialize(new { @event = eventName });
+            }
 
             var bytes = Encoding.UTF8.GetBytes(payload);
             await _webSocket.SendAsync(
@@ -245,6 +300,11 @@ public partial class MainWindow : Window
         {
             StatusText.Text = $"Erreur envoi: {ex.Message}";
         }
+    }
+
+    public async Task TryUnlockAsync(string code)
+    {
+        await SendEventAsync("try_unlock", new { code = code.Trim().ToUpperInvariant() });
     }
 
     private async void UnlockButton_Click(object sender, RoutedEventArgs e)
@@ -266,6 +326,17 @@ public partial class MainWindow : Window
         {
             await TryUnlockAsync(CodeInput.Text);
         }
+    }
+
+    private async void PostpaidStartButton_Click(object sender, RoutedEventArgs e)
+    {
+        StatusText.Text = "Démarrage session libre...";
+        await SendEventAsync("try_postpaid_start");
+    }
+
+    private async void PostpaidStopButton_Click(object sender, RoutedEventArgs e)
+    {
+        await SendEventAsync("stop_postpaid");
     }
 }
 

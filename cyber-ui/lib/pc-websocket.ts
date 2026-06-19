@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type PcLockState = 'VERROUILLE' | 'DEVERROUILLE';
+export type PcSessionType = 'PREPAID' | 'POSTPAID' | null;
 
 export interface PcEventLog {
   id: string;
@@ -23,7 +24,10 @@ export function usePcTestSocket(cyberId: string | null, numeroPoste: number) {
   const [connected, setConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [lockState, setLockState] = useState<PcLockState>('VERROUILLE');
+  const [typeSession, setTypeSession] = useState<PcSessionType>(null);
   const [tempsRestant, setTempsRestant] = useState<number | null>(null);
+  const [tempsEcoule, setTempsEcoule] = useState<number | null>(null);
+  const [montantEstime, setMontantEstime] = useState<number | null>(null);
   const [events, setEvents] = useState<PcEventLog[]>([]);
   const [reconnectKey, setReconnectKey] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
@@ -41,6 +45,13 @@ export function usePcTestSocket(cyberId: string | null, numeroPoste: number) {
     ]);
   }, []);
 
+  const resetSessionDisplay = useCallback(() => {
+    setTypeSession(null);
+    setTempsRestant(null);
+    setTempsEcoule(null);
+    setMontantEstime(null);
+  }, []);
+
   const handleMessage = useCallback(
     (payload: Record<string, unknown>) => {
       addEvent(payload);
@@ -49,17 +60,46 @@ export function usePcTestSocket(cyberId: string | null, numeroPoste: number) {
       switch (event) {
         case 'unlock_success':
           setLockState('DEVERROUILLE');
+          setTypeSession(
+            payload.typeSession === 'POSTPAID' ? 'POSTPAID' : 'PREPAID',
+          );
+          if (payload.typeSession === 'POSTPAID') {
+            setTempsRestant(null);
+            setTempsEcoule(0);
+            setMontantEstime(0);
+          }
           break;
         case 'command_lock':
+        case 'session_stopped':
           setLockState('VERROUILLE');
-          setTempsRestant(null);
+          resetSessionDisplay();
           break;
         case 'time_update':
-          if (typeof payload.tempsRestant === 'number') {
+          if (payload.typeSession === 'POSTPAID') {
+            setTypeSession('POSTPAID');
+            if (typeof payload.tempsEcoule === 'number') {
+              setTempsEcoule(payload.tempsEcoule);
+            }
+            if (typeof payload.montantEstime === 'number') {
+              setMontantEstime(payload.montantEstime);
+            }
+          } else if (typeof payload.tempsRestant === 'number') {
+            setTypeSession('PREPAID');
             setTempsRestant(payload.tempsRestant);
           }
           break;
       }
+    },
+    [addEvent, resetSessionDisplay],
+  );
+
+  const sendEvent = useCallback(
+    (payload: Record<string, unknown>) => {
+      if (wsRef.current?.readyState !== WebSocket.OPEN) {
+        addEvent({ event: 'error', message: 'Non connecté au serveur' });
+        return;
+      }
+      wsRef.current.send(JSON.stringify(payload));
     },
     [addEvent],
   );
@@ -75,7 +115,7 @@ export function usePcTestSocket(cyberId: string | null, numeroPoste: number) {
     setConnected(false);
     setConnectionError(null);
     setLockState('VERROUILLE');
-    setTempsRestant(null);
+    resetSessionDisplay();
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -118,24 +158,37 @@ export function usePcTestSocket(cyberId: string | null, numeroPoste: number) {
       ws.close();
       wsRef.current = null;
     };
-  }, [cyberId, numeroPoste, wsUrl, reconnectKey, handleMessage, addEvent]);
+  }, [
+    cyberId,
+    numeroPoste,
+    wsUrl,
+    reconnectKey,
+    handleMessage,
+    addEvent,
+    resetSessionDisplay,
+  ]);
 
   const tryUnlock = useCallback(
     (code: string) => {
-      if (wsRef.current?.readyState !== WebSocket.OPEN) {
-        addEvent({ event: 'error', message: 'Non connecté au serveur' });
-        return;
-      }
-
-      wsRef.current.send(
-        JSON.stringify({
-          event: 'try_unlock',
-          code: code.trim().toUpperCase(),
-        }),
-      );
+      sendEvent({
+        event: 'try_unlock',
+        code: code.trim().toUpperCase(),
+      });
     },
-    [addEvent],
+    [sendEvent],
   );
+
+  const tryPostpaidStart = useCallback(() => {
+    sendEvent({ event: 'try_postpaid_start' });
+  }, [sendEvent]);
+
+  const stopPostpaid = useCallback(() => {
+    sendEvent({ event: 'stop_postpaid' });
+  }, [sendEvent]);
+
+  const ping = useCallback(() => {
+    sendEvent({ event: 'ping' });
+  }, [sendEvent]);
 
   const reconnect = useCallback(() => {
     setReconnectKey((k) => k + 1);
@@ -148,9 +201,15 @@ export function usePcTestSocket(cyberId: string | null, numeroPoste: number) {
     connectionError,
     wsUrl,
     lockState,
+    typeSession,
     tempsRestant,
+    tempsEcoule,
+    montantEstime,
     events,
     tryUnlock,
+    tryPostpaidStart,
+    stopPostpaid,
+    ping,
     reconnect,
     clearEvents,
   };

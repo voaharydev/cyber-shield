@@ -1,13 +1,35 @@
 'use client';
 
-import { getPosteColor, PosteState } from '@/lib/websocket';
+import { useState } from 'react';
+import { TypePaiement } from '@/lib/api';
+import {
+  encaisserPostpaidSession,
+  startPostpaidSession,
+  stopPostpaidSession,
+} from '@/lib/session-api';
+import { getPosteColor, PosteColor, PosteState } from '@/lib/websocket';
 
-const colorClasses = {
+const colorClasses: Record<
+  PosteColor,
+  { border: string; bg: string; dot: string; label: string }
+> = {
   green: {
     border: 'border-emerald-500/60',
     bg: 'bg-emerald-950/40',
     dot: 'bg-emerald-400',
-    label: 'En cours',
+    label: 'Prépayé en cours',
+  },
+  blue: {
+    border: 'border-blue-500/60',
+    bg: 'bg-blue-950/40',
+    dot: 'bg-blue-400',
+    label: 'Session libre',
+  },
+  orange: {
+    border: 'border-orange-500/80',
+    bg: 'bg-orange-950/50',
+    dot: 'bg-orange-400',
+    label: 'À payer',
   },
   yellow: {
     border: 'border-amber-500/60',
@@ -23,29 +45,151 @@ const colorClasses = {
   },
 };
 
-function PosteCard({ poste }: { poste: PosteState }) {
+const PAIEMENTS: { value: TypePaiement; label: string }[] = [
+  { value: 'ESPECES', label: 'Espèces' },
+  { value: 'MOBILE_MONEY', label: 'Mobile Money' },
+  { value: 'CARTE', label: 'Carte' },
+];
+
+function formatAr(amount: number): string {
+  return `${amount.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} Ar`;
+}
+
+interface PosteCardProps {
+  poste: PosteState;
+}
+
+function PosteCard({ poste }: PosteCardProps) {
   const color = getPosteColor(poste);
   const styles = colorClasses[color];
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [typePaiement, setTypePaiement] = useState<TypePaiement>('ESPECES');
+
+  const pulse = poste.statut === 'A_PAYER';
+
+  async function runAction(action: () => Promise<unknown>) {
+    setLoading(true);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div
-      className={`rounded-xl border-2 p-4 transition-colors ${styles.border} ${styles.bg}`}
+      className={`rounded-xl border-2 p-4 transition-colors ${styles.border} ${styles.bg} ${pulse ? 'animate-pulse' : ''}`}
     >
       <div className="mb-3 flex items-center justify-between">
         <span className="text-lg font-semibold">PC {poste.numeroPoste}</span>
         <span className={`h-3 w-3 rounded-full ${styles.dot}`} />
       </div>
+
+      {poste.statut === 'EN_COURS' && poste.typeSession === 'POSTPAID' && (
+        <span className="mb-2 inline-block rounded bg-blue-600/30 px-2 py-0.5 text-xs font-medium text-blue-300">
+          Session Libre
+        </span>
+      )}
+
       <p className="text-sm text-zinc-400">{styles.label}</p>
-      {poste.statut === 'EN_COURS' && poste.tempsRestant !== null && (
-        <p className="mt-2 text-2xl font-mono font-bold text-emerald-300">
-          {poste.tempsRestant} min
+
+      {poste.statut === 'EN_COURS' &&
+        poste.typeSession === 'PREPAID' &&
+        poste.tempsRestant !== null && (
+          <p className="mt-2 text-2xl font-mono font-bold text-emerald-300">
+            {poste.tempsRestant} min
+          </p>
+        )}
+
+      {poste.statut === 'EN_COURS' &&
+        poste.typeSession === 'POSTPAID' && (
+          <>
+            <p className="mt-2 text-2xl font-mono font-bold text-blue-300">
+              {poste.tempsEcouleMinutes ?? 0} min
+            </p>
+            {poste.montantEstime != null && (
+              <p className="mt-1 text-sm text-blue-200/80">
+                ~{formatAr(poste.montantEstime)}
+              </p>
+            )}
+          </>
+        )}
+
+      {poste.statut === 'A_PAYER' && poste.montantDu != null && (
+        <p className="mt-2 text-3xl font-bold text-orange-300">
+          {formatAr(poste.montantDu)}
         </p>
       )}
-      {poste.ticketCode && (
+
+      {poste.ticketCode && poste.typeSession === 'PREPAID' && (
         <p className="mt-1 truncate font-mono text-xs text-zinc-500">
           {poste.ticketCode}
         </p>
       )}
+
+      <div className="mt-3 space-y-2">
+        {poste.statut === 'VERROUILLE' && poste.connected && (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              void runAction(() => startPostpaidSession(poste.numeroPoste))
+            }
+            className="w-full rounded-lg bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+          >
+            Session libre
+          </button>
+        )}
+
+        {poste.statut === 'EN_COURS' && poste.typeSession === 'POSTPAID' && (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              void runAction(() => stopPostpaidSession(poste.numeroPoste))
+            }
+            className="w-full rounded-lg bg-zinc-700 py-2 text-sm text-zinc-200 hover:bg-zinc-600 disabled:opacity-50"
+          >
+            Arrêter
+          </button>
+        )}
+
+        {poste.statut === 'A_PAYER' && (
+          <>
+            <select
+              value={typePaiement}
+              onChange={(e) =>
+                setTypePaiement(e.target.value as TypePaiement)
+              }
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-200"
+            >
+              {PAIEMENTS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() =>
+                void runAction(() =>
+                  encaisserPostpaidSession(poste.numeroPoste, typePaiement),
+                )
+              }
+              className="w-full rounded-lg bg-orange-600 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+            >
+              Encaisser & Libérer le poste
+            </button>
+          </>
+        )}
+      </div>
+
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
     </div>
   );
 }

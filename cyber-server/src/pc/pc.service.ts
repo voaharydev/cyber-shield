@@ -1,18 +1,30 @@
-import { StatutPoste, StatutTicket } from '@prisma/client';
 import {
+  StatutPoste,
+  StatutTicket,
+  TypeSession,
+} from '@prisma/client';
+import {
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  forwardRef,
 } from '@nestjs/common';
 import { WebSocket } from 'ws';
 import { PrismaService } from '../prisma/prisma.service';
+import { SessionService } from '../session/session.service';
+import { computeLivePostpaid } from '../session/session-billing';
 
 export interface PosteState {
   numeroPoste: number;
   statut: StatutPoste;
   connected: boolean;
+  typeSession: TypeSession | null;
   tempsRestant: number | null;
+  tempsEcouleMinutes: number | null;
+  montantEstime: number | null;
+  montantDu: number | null;
   ticketCode: string | null;
 }
 
@@ -31,20 +43,32 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
   private readonly pcConnections = new Map<string, WebSocket>();
   private readonly dashboardConnections = new Map<string, Set<WebSocket>>();
   private masterTimer: ReturnType<typeof setInterval> | null = null;
+  private postpaidUiTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => SessionService))
+    private readonly sessionService: SessionService,
+  ) {}
 
   onModuleInit() {
     this.masterTimer = setInterval(() => {
-      void this.tickMasterTimer();
+      void this.tickPrepaidTimer();
     }, 60_000);
-    this.logger.log('Master Timer démarré (intervalle 60s)');
+    this.postpaidUiTimer = setInterval(() => {
+      void this.tickPostpaidUi();
+    }, 10_000);
+    this.logger.log('Master Timer démarré (prépayé 60s, post-payé UI 10s)');
   }
 
   onModuleDestroy() {
     if (this.masterTimer) {
       clearInterval(this.masterTimer);
       this.masterTimer = null;
+    }
+    if (this.postpaidUiTimer) {
+      clearInterval(this.postpaidUiTimer);
+      this.postpaidUiTimer = null;
     }
   }
 
@@ -115,13 +139,41 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
       include: { ticketActuel: true },
     });
 
-    return sessions.map((session) => ({
-      numeroPoste: session.numeroPoste,
-      statut: session.statut,
-      connected: this.isPcConnected(cyberId, session.numeroPoste),
-      tempsRestant: session.ticketActuel?.tempsRestant ?? null,
-      ticketCode: session.ticketActuel?.codeUnique ?? null,
-    }));
+    return sessions.map((session) => {
+      let tempsEcouleMinutes: number | null = null;
+      let montantEstime: number | null = null;
+      let montantDu: number | null = session.montantDu
+        ? Number(session.montantDu)
+        : null;
+
+      if (
+        session.statut === StatutPoste.EN_COURS &&
+        session.typeSession === TypeSession.POSTPAID &&
+        session.tempsDebut
+      ) {
+        const live = computeLivePostpaid({
+          tempsDebut: session.tempsDebut,
+          baseTarifHoraire: session.baseTarifHoraire,
+        });
+        tempsEcouleMinutes = live.tempsEcouleMinutes;
+        montantEstime = live.montantEstime;
+      }
+
+      return {
+        numeroPoste: session.numeroPoste,
+        statut: session.statut,
+        connected: this.isPcConnected(cyberId, session.numeroPoste),
+        typeSession: session.typeSession,
+        tempsRestant:
+          session.typeSession !== TypeSession.POSTPAID
+            ? (session.ticketActuel?.tempsRestant ?? null)
+            : null,
+        tempsEcouleMinutes,
+        montantEstime,
+        montantDu,
+        ticketCode: session.ticketActuel?.codeUnique ?? null,
+      };
+    });
   }
 
   async broadcastGlobalUpdate(cyberId: string) {
@@ -164,11 +216,60 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
         }
         await this.tryUnlock(cyberId, numeroPoste, message.code, client);
         break;
+      case 'try_postpaid_start':
+        if (numeroPoste === null) {
+          this.sendJson(client, {
+            event: 'error',
+            message: 'try_postpaid_start réservé aux PC clients',
+          });
+          return;
+        }
+        await this.tryPostpaidStart(cyberId, numeroPoste, client);
+        break;
+      case 'stop_postpaid':
+        if (numeroPoste === null) {
+          this.sendJson(client, {
+            event: 'error',
+            message: 'stop_postpaid réservé aux PC clients',
+          });
+          return;
+        }
+        await this.tryPostpaidStop(cyberId, numeroPoste, client);
+        break;
       default:
         this.sendJson(client, {
           event: 'error',
           message: `Événement inconnu: ${message.event}`,
         });
+    }
+  }
+
+  private async tryPostpaidStart(
+    cyberId: string,
+    numeroPoste: number,
+    client: WebSocket,
+  ) {
+    try {
+      await this.sessionService.demarrerSessionPostPayee(cyberId, numeroPoste);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Session libre refusée';
+      this.sendJson(client, { event: 'unlock_rejected', message });
+    }
+  }
+
+  private async tryPostpaidStop(
+    cyberId: string,
+    numeroPoste: number,
+    client: WebSocket,
+  ) {
+    try {
+      await this.sessionService.arreterSessionPostPayee(cyberId, numeroPoste);
+      this.sendJson(client, { event: 'session_stopped' });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Arrêt session refusé';
+      this.sendJson(client, { event: 'error', message });
     }
   }
 
@@ -178,6 +279,34 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
     code: string,
     client: WebSocket,
   ) {
+    const session = await this.prisma.sessionOrdinateur.findUnique({
+      where: { cyberId_numeroPoste: { cyberId, numeroPoste } },
+    });
+
+    if (!session) {
+      this.sendJson(client, {
+        event: 'unlock_rejected',
+        message: 'Poste introuvable',
+      });
+      return;
+    }
+
+    if (session.statut === StatutPoste.A_PAYER) {
+      this.sendJson(client, {
+        event: 'unlock_rejected',
+        message: 'Poste en attente de paiement à la caisse',
+      });
+      return;
+    }
+
+    if (session.statut === StatutPoste.EN_COURS) {
+      this.sendJson(client, {
+        event: 'unlock_rejected',
+        message: "Poste déjà en cours d'utilisation",
+      });
+      return;
+    }
+
     const ticket = await this.prisma.ticket.findUnique({
       where: {
         cyberId_codeUnique: {
@@ -195,28 +324,6 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const session = await this.prisma.sessionOrdinateur.findUnique({
-      where: {
-        cyberId_numeroPoste: { cyberId, numeroPoste },
-      },
-    });
-
-    if (!session) {
-      this.sendJson(client, {
-        event: 'unlock_rejected',
-        message: 'Poste introuvable',
-      });
-      return;
-    }
-
-    if (session.statut === StatutPoste.EN_COURS) {
-      this.sendJson(client, {
-        event: 'unlock_rejected',
-        message: "Poste déjà en cours d'utilisation",
-      });
-      return;
-    }
-
     await this.prisma.$transaction(async (tx) => {
       await tx.ticket.update({
         where: { id: ticket.id },
@@ -227,7 +334,11 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
         where: { cyberId_numeroPoste: { cyberId, numeroPoste } },
         data: {
           statut: StatutPoste.EN_COURS,
+          typeSession: TypeSession.PREPAID,
           ticketActuelId: ticket.id,
+          tempsDebut: null,
+          tempsFin: null,
+          montantDu: null,
         },
       });
     });
@@ -236,14 +347,19 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
     this.sendToPc(cyberId, numeroPoste, {
       event: 'time_update',
       tempsRestant: ticket.tempsRestant,
+      typeSession: TypeSession.PREPAID,
     });
     await this.broadcastGlobalUpdate(cyberId);
   }
 
-  async tickMasterTimer() {
+  async tickPrepaidTimer() {
     try {
       const activeSessions = await this.prisma.sessionOrdinateur.findMany({
-        where: { statut: StatutPoste.EN_COURS, ticketActuelId: { not: null } },
+        where: {
+          statut: StatutPoste.EN_COURS,
+          ticketActuelId: { not: null },
+          NOT: { typeSession: TypeSession.POSTPAID },
+        },
         include: { ticketActuel: true },
       });
 
@@ -268,6 +384,7 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
               where: { id: session.id },
               data: {
                 statut: StatutPoste.VERROUILLE,
+                typeSession: null,
                 ticketActuelId: null,
               },
             });
@@ -285,6 +402,7 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
           this.sendToPc(session.cyberId, session.numeroPoste, {
             event: 'time_update',
             tempsRestant: newTempsRestant,
+            typeSession: TypeSession.PREPAID,
           });
         }
 
@@ -295,7 +413,45 @@ export class PcService implements OnModuleInit, OnModuleDestroy {
         await this.broadcastGlobalUpdate(cyberId);
       }
     } catch (error) {
-      this.logger.error('Erreur Master Timer', error);
+      this.logger.error('Erreur Master Timer prépayé', error);
+    }
+  }
+
+  async tickPostpaidUi() {
+    try {
+      const activeSessions = await this.prisma.sessionOrdinateur.findMany({
+        where: {
+          statut: StatutPoste.EN_COURS,
+          typeSession: TypeSession.POSTPAID,
+          tempsDebut: { not: null },
+        },
+      });
+
+      const cybersToUpdate = new Set<string>();
+
+      for (const session of activeSessions) {
+        if (!session.tempsDebut) continue;
+
+        const live = computeLivePostpaid({
+          tempsDebut: session.tempsDebut,
+          baseTarifHoraire: session.baseTarifHoraire,
+        });
+
+        this.sendToPc(session.cyberId, session.numeroPoste, {
+          event: 'time_update',
+          typeSession: TypeSession.POSTPAID,
+          tempsEcoule: live.tempsEcouleMinutes,
+          montantEstime: live.montantEstime,
+        });
+
+        cybersToUpdate.add(session.cyberId);
+      }
+
+      for (const cyberId of cybersToUpdate) {
+        await this.broadcastGlobalUpdate(cyberId);
+      }
+    } catch (error) {
+      this.logger.error('Erreur timer UI post-payé', error);
     }
   }
 }

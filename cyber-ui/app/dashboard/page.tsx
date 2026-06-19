@@ -42,10 +42,18 @@ export default function DashboardPage() {
                 Grille des postes
               </h2>
               <PcGrid postes={postes} skeletonCount={config.nombrePostes} />
-              <div className="mt-4 flex gap-4 text-xs text-zinc-500">
+              <div className="mt-4 flex flex-wrap gap-4 text-xs text-zinc-500">
                 <span className="flex items-center gap-1">
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  En cours
+                  Prépayé en cours
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-blue-400" />
+                  Session libre
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-orange-400" />
+                  À payer (bloqué)
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="h-2 w-2 rounded-full bg-amber-400" />

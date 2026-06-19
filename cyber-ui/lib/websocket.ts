@@ -4,9 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface PosteState {
   numeroPoste: number;
-  statut: 'VERROUILLE' | 'EN_COURS';
+  statut: 'VERROUILLE' | 'EN_COURS' | 'A_PAYER';
   connected: boolean;
+  typeSession: 'PREPAID' | 'POSTPAID' | null;
   tempsRestant: number | null;
+  tempsEcouleMinutes: number | null;
+  montantEstime: number | null;
+  montantDu: number | null;
   ticketCode: string | null;
 }
 
@@ -91,7 +95,15 @@ export function useCyberSocket(cyberId: string | null) {
   return { postes, connected };
 }
 
-export function getPosteColor(poste: PosteState): 'green' | 'yellow' | 'red' {
+export type PosteColor = 'green' | 'blue' | 'orange' | 'yellow' | 'red';
+
+export function getPosteColor(poste: PosteState): PosteColor {
+  if (poste.statut === 'A_PAYER') {
+    return 'orange';
+  }
+  if (poste.statut === 'EN_COURS' && poste.typeSession === 'POSTPAID') {
+    return 'blue';
+  }
   if (poste.statut === 'EN_COURS') {
     return 'green';
   }

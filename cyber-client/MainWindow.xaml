@@ -9,7 +9,7 @@
         Background="#0A0A0B"
         ShowInTaskbar="True">
     <Grid>
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+        <StackPanel x:Name="LockPanel" VerticalAlignment="Center" HorizontalAlignment="Center">
             <TextBlock Text="🔒"
                        FontSize="72"
                        HorizontalAlignment="Center"
@@ -20,7 +20,7 @@
                        Foreground="#FAFAFA"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,12"/>
-            <TextBlock Text="Entrez votre code à la caisse pour déverrouiller"
+            <TextBlock Text="Code ticket ou session libre (paiement à la fin)"
                        FontSize="18"
                        Foreground="#A1A1AA"
                        HorizontalAlignment="Center"
@@ -50,6 +50,17 @@
                         Cursor="Hand"
                         Click="UnlockButton_Click"/>
             </StackPanel>
+            <Button x:Name="PostpaidStartButton"
+                    Content="Session libre"
+                    Width="220"
+                    Height="40"
+                    Margin="0,16,0,0"
+                    Background="#2563EB"
+                    Foreground="White"
+                    BorderThickness="0"
+                    FontSize="14"
+                    Cursor="Hand"
+                    Click="PostpaidStartButton_Click"/>
             <TextBlock x:Name="StatusText"
                        FontSize="14"
                        Foreground="#EF4444"
@@ -70,5 +81,39 @@
                        Margin="0,32,0,0"
                        Text="Connexion au serveur..."/>
         </StackPanel>
+
+        <Border x:Name="PostpaidBarPanel"
+                Visibility="Collapsed"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Right"
+                Margin="24"
+                Background="#18181B"
+                BorderBrush="#2563EB"
+                BorderThickness="2"
+                CornerRadius="8"
+                Padding="16">
+            <StackPanel>
+                <TextBlock x:Name="PostpaidTimeText"
+                           FontSize="16"
+                           FontFamily="Consolas"
+                           Foreground="#60A5FA"
+                           Text="Session libre — 0 min"/>
+                <TextBlock x:Name="PostpaidAmountText"
+                           FontSize="14"
+                           Foreground="#A1A1AA"
+                           Margin="0,4,0,12"
+                           Text="0 Ar"/>
+                <Button x:Name="PostpaidStopButton"
+                        Content="Terminer la session"
+                        Width="200"
+                        Height="36"
+                        Background="#DC2626"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontSize="13"
+                        Cursor="Hand"
+                        Click="PostpaidStopButton_Click"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

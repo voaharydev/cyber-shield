@@ -302,29 +302,79 @@ Clients démo (`npm run seed:demo`) : `032 12 345 67` (120 pts), `033 11 122 33`
 
 Le journal `MouvementFidelite` est append-only ; le solde = somme des mouvements.
 
+### Session libre (post-payé)
+
+Mode **paiement à la fin** : démarrage sans ticket, facturation à l'arrêt, poste bloqué en `A_PAYER` jusqu'à encaissement.
+
+**Tarif** : `baseTarifHoraire = prixParMinute × 60` (Ar/h) snapshot à l'ouverture. Facturation minute supérieure.
+
+| Action | API / WebSocket |
+|--------|-----------------|
+| Démarrer | `POST /sessions/postpayee/:poste/start` ou WS `try_postpaid_start` |
+| Arrêter (lock PC) | `POST /sessions/postpayee/:poste/stop` ou WS `stop_postpaid` |
+| Encaisser | `POST /sessions/postpayee/:poste/encaisser` — `{ "typePaiement": "ESPECES" }` |
+
+Dashboard : carte bleue (chrono + montant estimé), carte orange clignotante (`A_PAYER` + Encaisser).
+
 ## Règles de sécurité
 
 1. **Append-only caisse** — aucun UPDATE/DELETE sur `TransactionCaisse`
 2. **Append-only fidélité** — aucun UPDATE/DELETE sur `MouvementFidelite`
 3. **Ticket = transaction** — création ticket atomique avec encaissement
-4. **Master Timer** — décompte temps uniquement côté serveur
+4. **Session libre** — poste `A_PAYER` bloqué jusqu'à écriture `TransactionCaisse` ; verrouillage PC immédiat à l'arrêt
+5. **Master Timer** — décompte temps uniquement côté serveur (prépayé uniquement)
 
 ## Tester un ticket (sans client WPF)
 
 ### Option A — Page web (recommandé)
 
 1. Se connecter sur http://localhost:3001/login
-2. Vendre un ticket sur `/dashboard`
-3. Ouvrir `/test-client`, coller le code `TCK-XXXXX`, cliquer **Déverrouiller**
-4. Vérifier sur le dashboard que le poste passe au vert
+2. Vendre un ticket sur `/dashboard` (prépayé) ou tester la session libre
+3. Ouvrir `/test-client`, choisir le poste simulé
+4. **Ticket** : coller `TCK-XXXXX` → **Déverrouiller**
+5. **Session libre** : **Session libre** → chrono bleu sur le dashboard → **Terminer** → encaisser sur le dashboard
+6. Vérifier que le poste passe au vert (prépayé) ou orange `A_PAYER` (post-payé)
 
-### Option B — Script CLI
+### Option B — Script CLI (one-shot)
 
 ```bash
 cd cyber-server
 npm run test:unlock -- --cyber cyber_legacy_default --poste 1 --code TCK-XXXXX
-npm run test:unlock -- --cyber cyber_legacy_default --poste 1 --code TCK-XXXXX --watch
 ```
+
+### Option C — Simulateur de poste (CLI interactif)
+
+Simule un poste WPF connecté en permanence (poste **jaune** sur le dashboard) :
+
+```bash
+cd cyber-server
+npm run test:pc -- --cyber cyber_legacy_default --poste 1 --interactive
+```
+
+Dans le terminal interactif :
+
+| Commande | Action |
+|----------|--------|
+| `unlock TCK-XXX` | Déverrouiller avec un ticket prépayé |
+| `start` | Démarrer une session libre (post-payé) |
+| `stop` | Arrêter la session libre + verrouillage |
+| `ping` | Ping serveur |
+| `quit` | Quitter |
+
+One-shot session libre (sans mode interactif) :
+
+```bash
+npm run test:pc -- --cyber cyber_legacy_default --poste 1 --postpaid-start
+npm run test:pc -- --cyber cyber_legacy_default --poste 1 --postpaid-stop
+```
+
+Test bout-en-bout session libre sans WPF :
+
+1. Terminal A : `npm run test:pc -- --cyber cyber_legacy_default --poste 1 --interactive`
+2. Dashboard : poste 1 passe jaune (connecté)
+3. Terminal A : `start` → carte bleue sur le dashboard
+4. Terminal A : `stop` → carte orange `A_PAYER`, script affiche VERROUILLÉ
+5. Dashboard : **Encaisser & Libérer**
 
 WebSocket PC : `ws://host:5001/cyber?cyber=CYBER_ID&poste=N`
 

@@ -20,9 +20,15 @@ export function TestClientPanel() {
     connectionError,
     wsUrl,
     lockState,
+    typeSession,
     tempsRestant,
+    tempsEcoule,
+    montantEstime,
     events,
     tryUnlock,
+    tryPostpaidStart,
+    stopPostpaid,
+    ping,
     reconnect,
     clearEvents,
   } = usePcTestSocket(activeCyberId, numeroPoste);
@@ -32,6 +38,9 @@ export function TestClientPanel() {
       setNumeroPoste(1);
     }
   }, [config.nombrePostes, numeroPoste]);
+
+  const sessionActive =
+    lockState === 'DEVERROUILLE' && typeSession === 'POSTPAID';
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,37 +94,83 @@ export function TestClientPanel() {
         className={`rounded-xl border-2 p-6 text-center ${
           lockState === 'VERROUILLE'
             ? 'border-red-500/50 bg-red-950/30'
-            : 'border-emerald-500/50 bg-emerald-950/30'
+            : typeSession === 'POSTPAID'
+              ? 'border-blue-500/50 bg-blue-950/30'
+              : 'border-emerald-500/50 bg-emerald-950/30'
         }`}
       >
         <p className="text-sm text-zinc-400">État simulé</p>
         <p className="mt-1 text-3xl font-bold">
           {lockState === 'VERROUILLE' ? 'VERROUILLÉ' : 'DÉVERROUILLÉ'}
         </p>
-        {tempsRestant !== null && lockState === 'DEVERROUILLE' && (
-          <p className="mt-2 font-mono text-xl text-emerald-300">
-            {tempsRestant} min restantes
+        {typeSession && lockState === 'DEVERROUILLE' && (
+          <p className="mt-1 text-sm text-zinc-400">
+            {typeSession === 'POSTPAID' ? 'Session libre' : 'Ticket prépayé'}
           </p>
         )}
+        {typeSession === 'PREPAID' &&
+          tempsRestant !== null &&
+          lockState === 'DEVERROUILLE' && (
+            <p className="mt-2 font-mono text-xl text-emerald-300">
+              {tempsRestant} min restantes
+            </p>
+          )}
+        {typeSession === 'POSTPAID' &&
+          lockState === 'DEVERROUILLE' &&
+          tempsEcoule !== null && (
+            <p className="mt-2 font-mono text-xl text-blue-300">
+              {tempsEcoule} min écoulées
+              {montantEstime !== null && ` — ~${montantEstime} Ar`}
+            </p>
+          )}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-3">
-        <input
-          type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="TCK-XXXXX"
-          maxLength={9}
-          className="flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 font-mono text-white focus:border-emerald-500 focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={!code.trim()}
-          className="rounded-lg bg-emerald-600 px-6 py-2 font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Déverrouiller
-        </button>
-      </form>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={handleSubmit} className="flex gap-3">
+          <input
+            type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="TCK-XXXXX"
+            maxLength={9}
+            className="flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 font-mono text-white focus:border-emerald-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!connected || !code.trim()}
+            className="rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Déverrouiller
+          </button>
+        </form>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={tryPostpaidStart}
+            disabled={!connected || sessionActive}
+            className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Session libre
+          </button>
+          <button
+            type="button"
+            onClick={stopPostpaid}
+            disabled={!connected || !sessionActive}
+            className="flex-1 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Terminer
+          </button>
+          <button
+            type="button"
+            onClick={ping}
+            disabled={!connected}
+            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Ping
+          </button>
+        </div>
+      </div>
 
       <div className="space-y-1 text-xs text-zinc-500">
         <p>
@@ -126,6 +181,12 @@ export function TestClientPanel() {
         )}
         {!connected && (
           <p>Vérifiez que cyber-server tourne sur le port 5001.</p>
+        )}
+        {connected && (
+          <p>
+            Le poste apparaît <span className="text-yellow-400">jaune</span> sur
+            le dashboard tant que cette page est ouverte.
+          </p>
         )}
       </div>
 
@@ -158,11 +219,15 @@ export function TestClientPanel() {
                     className={
                       entry.payload.event === 'unlock_success'
                         ? 'text-emerald-400'
-                        : entry.payload.event === 'unlock_rejected'
+                        : entry.payload.event === 'unlock_rejected' ||
+                            entry.payload.event === 'error'
                           ? 'text-red-400'
                           : entry.payload.event === 'time_update'
                             ? 'text-amber-400'
-                            : 'text-zinc-300'
+                            : entry.payload.event === 'session_stopped' ||
+                                entry.payload.event === 'command_lock'
+                              ? 'text-orange-400'
+                              : 'text-zinc-300'
                     }
                   >
                     {String(entry.payload.event ?? 'message')}
