@@ -7,7 +7,8 @@ Ce document décrit comment CyberControl est branché entre le **siège (cloud)*
 | Guide | Contenu |
 |-------|---------|
 | [INSTALLATION-DISTANCE.md](INSTALLATION-DISTANCE.md) | Supabase, Vercel, migrations, utilisation caisse à distance |
-| [INSTALLATION-LOCALE.md](INSTALLATION-LOCALE.md) | Edge **Docker** (recommandé), PC WPF, réseau |
+| [INSTALLATION-SUCCURSALE.md](INSTALLATION-SUCCURSALE.md) | Fiche terrain : edge Docker, PC WPF, checklist |
+| [INSTALLATION-LOCALE.md](INSTALLATION-LOCALE.md) | Référence technique : réseau, TLS, dev Node |
 
 ## Modèle général
 
@@ -112,7 +113,7 @@ Les PC sont joints via WebSocket local ; le dashboard n'utilise plus ce canal.
 
 ## Ce qui tourne à la succursale
 
-Chaque cybercafé physique = **une machine Docker** avec `cyber-server` (voir [INSTALLATION-LOCALE.md](INSTALLATION-LOCALE.md) — §1 Docker recommandé) :
+Chaque cybercafé physique = **une machine Docker** avec `cyber-server` (voir [INSTALLATION-SUCCURSALE.md](INSTALLATION-SUCCURSALE.md)) :
 
 | Élément | Configuration |
 |---------|---------------|
@@ -180,7 +181,7 @@ Pour l'instant, **piloter la caisse à distance** fonctionne via l'UI Vercel. Le
 
 ## Simuler en dev local
 
-Voir [INSTALLATION-LOCALE.md § Dev local complet](INSTALLATION-LOCALE.md#4-dev-local-complet-3-terminaux) et le résumé dans le [README](../README.md).
+Voir [INSTALLATION-LOCALE.md § Alternative dev](INSTALLATION-LOCALE.md#2-alternative-dev-nodejs) et le résumé dans le [README](../README.md).
 
 ## Fichiers clés
 

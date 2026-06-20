@@ -1,6 +1,8 @@
 # Installation locale (succursale)
 
-Guide pour le **technicien sur site** au cybercafé — serveur edge (`cyber-server`) en **Docker**, clients PC (`cyber-client` WPF) et réseau local.
+Guide technique pour le **technicien sur site** — serveur edge (`cyber-server`) en **Docker**, clients PC (`cyber-client` WPF) et réseau local.
+
+> **Installation rapide** : voir la fiche terrain [INSTALLATION-SUCCURSALE.md](INSTALLATION-SUCCURSALE.md).
 
 Pour Supabase, Vercel et utilisation de la caisse à distance, voir [INSTALLATION-DISTANCE.md](INSTALLATION-DISTANCE.md).  
 Pour le câblage cloud ↔ edge ↔ PC, voir [ARCHITECTURE.md](ARCHITECTURE.md).

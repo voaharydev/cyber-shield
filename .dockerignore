@@ -4,6 +4,7 @@ dist
 out
 build
 coverage
+packages/db/src/generated
 
 # Env secrets
 .env

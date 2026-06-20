@@ -12,6 +12,8 @@ services:
     ports:
       - "5001:5001"
     restart: unless-stopped
+    # Supabase db.*.supabase.co est souvent IPv6-only : activer IPv6 dans Docker Desktop
+    # (Settings → Network) si P1001 depuis le conteneur sur Mac.
     healthcheck:
       test:
         [
@@ -24,3 +26,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+networks:
+  default:
+    enable_ipv6: true

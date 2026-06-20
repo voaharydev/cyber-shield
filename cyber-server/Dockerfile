@@ -1,6 +1,8 @@
 # Build context: racine du monorepo (docker compose / docker build -f cyber-server/Dockerfile .)
 FROM node:20-slim AS build
 
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -19,15 +21,16 @@ RUN npm run build -w cyber-server
 
 FROM node:20-slim AS runner
 
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
-COPY packages ./packages
 COPY cyber-server/package.json ./cyber-server/package.json
+COPY --from=build /app/packages ./packages
 COPY --from=build /app/cyber-server/dist ./cyber-server/dist
-COPY --from=build /app/packages/domain/dist ./packages/domain/dist
 COPY --from=build /app/node_modules ./node_modules
 
 WORKDIR /app/cyber-server

@@ -33,7 +33,8 @@ Packages partagés : `packages/db` (Prisma), `packages/domain` (logique métier)
 |-------|--------|---------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tous | Câblage Siège/Succursale, flux `sourceMiseAJour`, sécurité |
 | [INSTALLATION-DISTANCE.md](docs/INSTALLATION-DISTANCE.md) | Admin siège | Supabase, Vercel, migrations, utilisation caisse à distance |
-| [INSTALLATION-LOCALE.md](docs/INSTALLATION-LOCALE.md) | Technicien sur site | Edge Docker, PC WPF, réseau |
+| [INSTALLATION-SUCCURSALE.md](docs/INSTALLATION-SUCCURSALE.md) | Technicien sur site | Fiche terrain : edge Docker, PC WPF, checklist |
+| [INSTALLATION-LOCALE.md](docs/INSTALLATION-LOCALE.md) | Technicien / dev | Référence technique : réseau, TLS, dev Node, simulateur |
 
 ## Prérequis
 
@@ -64,7 +65,7 @@ npm run edge:health
 
 Login UI : http://localhost:3000/login — `admin@cybercontrol.local` / `admin123`
 
-Guides : [INSTALLATION-DISTANCE.md](docs/INSTALLATION-DISTANCE.md) · [INSTALLATION-LOCALE.md](docs/INSTALLATION-LOCALE.md)
+Guides : [INSTALLATION-DISTANCE.md](docs/INSTALLATION-DISTANCE.md) · [INSTALLATION-SUCCURSALE.md](docs/INSTALLATION-SUCCURSALE.md)
 
 ## État de migration cloud
 
@@ -80,7 +81,7 @@ Variables et procédures détaillées :
 
 - **Edge** (`cyber-server/.env`) → [INSTALLATION-LOCALE.md](docs/INSTALLATION-LOCALE.md)
 - **UI** (`cyber-ui/.env.local`, Vercel) → [INSTALLATION-DISTANCE.md](docs/INSTALLATION-DISTANCE.md)
-- **Client WPF** (`appsettings.json`) → [INSTALLATION-LOCALE.md](docs/INSTALLATION-LOCALE.md)
+- **Client WPF** (`appsettings.json`) → [INSTALLATION-SUCCURSALE.md](docs/INSTALLATION-SUCCURSALE.md)
 
 Comptes initiaux après `db:seed` + `db:seed:auth` : `admin@cybercontrol.local` / `admin123`, `staff@cybercontrol.local` / `staff123`.
 
@@ -108,7 +109,7 @@ Comptes staff supplémentaires créés :
 ## Déploiement production
 
 - **Cloud / siège** (Supabase + Vercel + utilisation à distance) → [INSTALLATION-DISTANCE.md](docs/INSTALLATION-DISTANCE.md)
-- **Succursale** (edge + PC + réseau) → [INSTALLATION-LOCALE.md](docs/INSTALLATION-LOCALE.md)
+- **Succursale** (edge + PC + réseau) → [INSTALLATION-SUCCURSALE.md](docs/INSTALLATION-SUCCURSALE.md)
 
 Architecture : dashboard Vercel + serveur edge local par cybercafé + PC en connexion sortante. `cyber-server` ne convient pas aux Vercel Functions (WebSocket persistant, Master Timer).
 

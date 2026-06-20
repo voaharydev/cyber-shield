@@ -1,8 +1,13 @@
 import 'dotenv/config';
+import { WebSocket } from 'ws';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { AppModule } from './app.module';
+
+// Supabase Realtime + Nest WsAdapter need a WebSocket impl in Node (Docker slim has none).
+(globalThis as typeof globalThis & { WebSocket: typeof WebSocket }).WebSocket =
+  WebSocket;
 
 function parseCorsOrigins(): string | string[] {
   const raw = process.env.CORS_ORIGIN;

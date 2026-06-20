@@ -2,7 +2,7 @@
 
 Guide pour l'**administrateur au siège** — déploiement Supabase + Vercel et utilisation de la caisse **depuis l'extérieur**, sans être sur le réseau du cybercafé.
 
-Pour l'installation sur site (serveur edge + PC), voir [INSTALLATION-LOCALE.md](INSTALLATION-LOCALE.md).  
+Pour l'installation sur site (serveur edge + PC), voir [INSTALLATION-SUCCURSALE.md](INSTALLATION-SUCCURSALE.md).  
 Pour comprendre le câblage global, voir [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Prérequis
@@ -159,7 +159,7 @@ Le sélecteur est géré par [`cyber-ui/lib/cyber-context.tsx`](../cyber-ui/lib/
 
 ### Prérequis côté succursale
 
-Pour que les actions (vente, déverrouillage) **atteignent les PC**, le serveur edge de la succursale doit être en ligne avec `EDGE_CYBER_ID` correspondant au cyber sélectionné. Voir [INSTALLATION-LOCALE.md](INSTALLATION-LOCALE.md).
+Pour que les actions (vente, déverrouillage) **atteignent les PC**, le serveur edge de la succursale doit être en ligne avec `EDGE_CYBER_ID` correspondant au cyber sélectionné. Voir [INSTALLATION-SUCCURSALE.md](INSTALLATION-SUCCURSALE.md).
 
 Sans edge actif : lecture/écriture en base OK, mais pas de relay vers les postes.
 
@@ -205,5 +205,5 @@ Le workflow **CI** (push/PR sur `main`) vérifie les builds sans secrets.
 - [ ] Login `https://…/login` OK
 - [ ] Dashboard Realtime OK (grille visible)
 - [ ] Mots de passe seed changés
-- [ ] Par succursale : livrer `.env.shared` ou `cyber-server/.env` + [guide Docker](INSTALLATION-LOCALE.md) (`setup:edge` → `edge:up`)
+- [ ] Par succursale : livrer `.env.shared` ou `cyber-server/.env` + [fiche technicien](INSTALLATION-SUCCURSALE.md) (`setup:edge` → `edge:up`)
 - [ ] Test bout-en-bout : vente ticket à distance → déverrouillage PC sur site
