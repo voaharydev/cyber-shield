@@ -1,0 +1,26 @@
+{
+  "name": "@cyber-shield/domain",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/poste-state.d.ts",
+      "default": "./dist/ui/poste-state.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@cyber-shield/db": "1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

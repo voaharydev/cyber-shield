@@ -1,0 +1,30 @@
+{
+  "name": "@cyber-shield/db",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./index.js",
+  "types": "./src/index.ts",
+  "scripts": {
+    "prisma:generate": "dotenv -e ../../cyber-server/.env -e .env -- prisma generate",
+    "prisma:migrate": "dotenv -e ../../cyber-server/.env -e .env -- prisma migrate dev",
+    "prisma:deploy": "dotenv -e ../../cyber-server/.env -e .env -- prisma migrate deploy",
+    "prisma:seed": "dotenv -e ../../cyber-server/.env -e .env -- ts-node prisma/seed.ts",
+    "seed:auth": "dotenv -e ../../cyber-server/.env -e .env -- ts-node prisma/seed-auth.ts"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.1.0"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "@types/node": "^22.10.2",
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.6.1",
+    "dotenv-cli": "^8.0.0",
+    "prisma": "^6.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}

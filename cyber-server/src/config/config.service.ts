@@ -3,9 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { StatutPoste } from '@prisma/client';
+import { StatutPoste } from '@cyber-shield/db';
 import { PrismaService } from '../prisma/prisma.service';
-import { PcService } from '../pc/pc.service';
 import { UpdateConfigDto } from './dto/update-config.dto';
 
 export interface AppConfigDto {
@@ -18,10 +17,7 @@ export interface AppConfigDto {
 
 @Injectable()
 export class ConfigService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly pcService: PcService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   private toDto(cyber: {
     id: string;
@@ -68,6 +64,17 @@ export class ConfigService {
             cyberId,
             numeroPoste: poste,
             statut: StatutPoste.VERROUILLE,
+          },
+        });
+        await this.prisma.postePresence.upsert({
+          where: {
+            cyberId_numeroPoste: { cyberId, numeroPoste: poste },
+          },
+          update: {},
+          create: {
+            cyberId,
+            numeroPoste: poste,
+            connected: false,
           },
         });
       }
@@ -121,10 +128,6 @@ export class ConfigService {
         }),
       },
     });
-
-    if (dto.nombrePostes !== undefined) {
-      await this.pcService.broadcastGlobalUpdate(cyberId);
-    }
 
     return this.toDto(cyber);
   }

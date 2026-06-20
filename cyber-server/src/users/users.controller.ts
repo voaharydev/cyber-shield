@@ -8,7 +8,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role } from '@cyber-shield/db';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UsersService } from './users.service';
 import { CreateStaffDto } from './dto/create-staff.dto';

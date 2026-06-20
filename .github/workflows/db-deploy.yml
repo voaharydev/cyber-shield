@@ -1,0 +1,50 @@
+name: DB Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_seed:
+        description: Run db:seed after deploy
+        type: boolean
+        default: false
+      run_seed_auth:
+        description: Run db:seed:auth after deploy
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write cyber-server/.env for Prisma
+        run: |
+          cat > cyber-server/.env <<EOF
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          DIRECT_URL=${{ secrets.DIRECT_URL }}
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EOF
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Deploy migrations
+        run: npm run db:deploy
+
+      - name: Seed database
+        if: inputs.run_seed
+        run: npm run db:seed
+
+      - name: Seed Supabase Auth
+        if: inputs.run_seed_auth
+        run: npm run db:seed:auth

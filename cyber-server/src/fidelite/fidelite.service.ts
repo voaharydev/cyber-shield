@@ -7,7 +7,7 @@ import {
   FideliteConfig,
   Prisma,
   TypeMouvementFidelite,
-} from '@prisma/client';
+} from '@cyber-shield/db';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateFideliteConfigDto } from './dto/update-fidelite-config.dto';
 import { CreateClientDto } from './dto/create-client.dto';

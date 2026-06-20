@@ -7,7 +7,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { StatutTicket } from '@prisma/client';
+import { StatutTicket } from '@cyber-shield/db';
 
 export class ListTicketsDto {
   @IsOptional()

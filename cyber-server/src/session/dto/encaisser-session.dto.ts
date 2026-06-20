@@ -1,5 +1,5 @@
 import { IsEnum } from 'class-validator';
-import { TypePaiement } from '@prisma/client';
+import { TypePaiement } from '@cyber-shield/db';
 
 export class EncaisserSessionDto {
   @IsEnum(TypePaiement)

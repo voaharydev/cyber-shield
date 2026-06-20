@@ -1,0 +1,26 @@
+# Prérequis : cyber-server/.env (généré par npm run setup:edge)
+# Démarrage : npm run edge:up
+services:
+  edge:
+    build:
+      context: .
+      dockerfile: cyber-server/Dockerfile
+    env_file:
+      - cyber-server/.env
+    environment:
+      PORT: "5001"
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5001/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

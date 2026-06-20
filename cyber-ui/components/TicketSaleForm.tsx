@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createTicket, TypePaiement } from '@/lib/api';
+import { createTicketAction } from '@/app/actions/sessions';
+import { TypePaiement } from '@/lib/api';
 import {
   createFideliteClient,
   FideliteClient,
   FideliteConfig,
   lookupFideliteClient,
 } from '@/lib/fidelite-api';
+import { useCyber } from '@/lib/cyber-context';
 import { useConfig } from '@/lib/use-config';
 
 const PAIEMENTS: { value: TypePaiement; label: string }[] = [
@@ -43,6 +45,7 @@ function previewEchange(
 }
 
 export function TicketSaleForm() {
+  const { activeCyberId } = useCyber();
   const { config } = useConfig();
   const [tempsInitial, setTempsInitial] = useState<number>(60);
   const [typePaiement, setTypePaiement] = useState<TypePaiement>('ESPECES');
@@ -162,7 +165,12 @@ export function TicketSaleForm() {
           : {}),
       };
 
-      const result = await createTicket(payload);
+      if (!activeCyberId) {
+        setError('Aucun établissement sélectionné');
+        return;
+      }
+
+      const result = await createTicketAction(activeCyberId, payload);
       setGeneratedCode(result.ticket.codeUnique);
 
       const parts: string[] = [];

@@ -6,7 +6,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Role } from '@prisma/client';
+import { Role } from '@cyber-shield/db';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RequestUser } from '../auth.types';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';

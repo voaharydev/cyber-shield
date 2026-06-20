@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { TypePaiement } from '@/lib/api';
 import {
-  encaisserPostpaidSession,
-  resetPoste,
-  startPostpaidSession,
-  stopPostpaidSession,
-} from '@/lib/session-api';
+  encaisserPostpaidSessionAction,
+  resetPosteAction,
+  startPostpaidSessionAction,
+  stopPostpaidSessionAction,
+} from '@/app/actions/sessions';
 import { getPosteColor, PosteColor, PosteState } from '@/lib/websocket';
 
 const colorClasses: Record<
@@ -94,9 +94,10 @@ function getResetConfig(
 
 interface PosteCardProps {
   poste: PosteState;
+  cyberId: string;
 }
 
-function PosteCard({ poste }: PosteCardProps) {
+function PosteCard({ poste, cyberId }: PosteCardProps) {
   const color = getPosteColor(poste);
   const styles = colorClasses[color];
   const [loading, setLoading] = useState(false);
@@ -121,7 +122,7 @@ function PosteCard({ poste }: PosteCardProps) {
   function handleReset() {
     if (!resetConfig) return;
     if (!window.confirm(resetConfig.message)) return;
-    void runAction(() => resetPoste(poste.numeroPoste));
+    void runAction(() => resetPosteAction(cyberId, poste.numeroPoste));
   }
 
   return (
@@ -181,7 +182,9 @@ function PosteCard({ poste }: PosteCardProps) {
             type="button"
             disabled={loading}
             onClick={() =>
-              void runAction(() => startPostpaidSession(poste.numeroPoste))
+              void runAction(() =>
+                startPostpaidSessionAction(cyberId, poste.numeroPoste),
+              )
             }
             className="w-full rounded-lg bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
           >
@@ -194,7 +197,9 @@ function PosteCard({ poste }: PosteCardProps) {
             type="button"
             disabled={loading}
             onClick={() =>
-              void runAction(() => stopPostpaidSession(poste.numeroPoste))
+              void runAction(() =>
+                stopPostpaidSessionAction(cyberId, poste.numeroPoste),
+              )
             }
             className="w-full rounded-lg bg-zinc-700 py-2 text-sm text-zinc-200 hover:bg-zinc-600 disabled:opacity-50"
           >
@@ -222,7 +227,11 @@ function PosteCard({ poste }: PosteCardProps) {
               disabled={loading}
               onClick={() =>
                 void runAction(() =>
-                  encaisserPostpaidSession(poste.numeroPoste, typePaiement),
+                  encaisserPostpaidSessionAction(
+                    cyberId,
+                    poste.numeroPoste,
+                    typePaiement,
+                  ),
                 )
               }
               className="w-full rounded-lg bg-orange-600 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
@@ -262,9 +271,10 @@ function SkeletonCard({ index }: { index: number }) {
 interface PcGridProps {
   postes: PosteState[];
   skeletonCount?: number;
+  cyberId: string;
 }
 
-export function PcGrid({ postes, skeletonCount = 12 }: PcGridProps) {
+export function PcGrid({ postes, skeletonCount = 12, cyberId }: PcGridProps) {
   if (postes.length === 0) {
     return (
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -278,7 +288,7 @@ export function PcGrid({ postes, skeletonCount = 12 }: PcGridProps) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {postes.map((poste) => (
-        <PosteCard key={poste.numeroPoste} poste={poste} />
+        <PosteCard key={poste.numeroPoste} poste={poste} cyberId={cyberId} />
       ))}
     </div>
   );

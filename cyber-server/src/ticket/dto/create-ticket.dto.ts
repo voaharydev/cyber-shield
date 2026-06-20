@@ -7,7 +7,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { TypePaiement } from '@prisma/client';
+import { TypePaiement } from '@cyber-shield/db';
 import {
   EchangePointsDto,
   EchangePointsType,

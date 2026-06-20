@@ -1,0 +1,28 @@
+{
+  "name": "cyber-shield",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "cyber-server",
+    "cyber-ui"
+  ],
+  "scripts": {
+    "setup:cloud": "node scripts/setup-cloud.mjs",
+    "setup:edge": "node scripts/setup-edge.mjs",
+    "edge:up": "docker compose up --build -d",
+    "edge:down": "docker compose down",
+    "edge:logs": "docker compose logs -f edge",
+    "edge:health": "curl -sf http://localhost:5001/health || echo 'edge unreachable'",
+    "dev": "npm run build:packages && concurrently -n server,ui -c blue,green \"npm run start:dev -w cyber-server\" \"npm run dev -w cyber-ui\"",
+    "postinstall": "npm run db:generate",
+    "db:generate": "npm run prisma:generate -w @cyber-shield/db",
+    "db:migrate": "npm run prisma:migrate -w @cyber-shield/db",
+    "db:deploy": "npm run prisma:deploy -w @cyber-shield/db",
+    "db:seed": "npm run prisma:seed -w @cyber-shield/db",
+    "db:seed:auth": "npm run seed:auth -w @cyber-shield/db",
+    "build:packages": "npm run build -w @cyber-shield/domain"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

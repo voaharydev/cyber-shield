@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { CyberSummary, fetchCybers } from '@/lib/api';
+import { fetchCybersAction } from '@/app/actions/config';
 import { useAuth } from '@/lib/auth';
 
 const CYBER_KEY = 'cyber_active_id';
@@ -35,7 +35,7 @@ function pickActiveId(
 }
 
 export function CyberProvider({ children }: { children: React.ReactNode }) {
-  const { user, token, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [cybers, setCybers] = useState<{ id: string; nom: string }[]>([]);
   const [activeCyberId, setActiveCyberIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,7 +44,7 @@ export function CyberProvider({ children }: { children: React.ReactNode }) {
     isAdmin || (user?.cyberIds.length ?? 0) > 1;
 
   const refreshCybers = useCallback(async () => {
-    if (!token || !user) {
+    if (!user) {
       setCybers([]);
       setActiveCyberIdState(null);
       setLoading(false);
@@ -52,7 +52,7 @@ export function CyberProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (isAdmin) {
-      const { cybers: list } = await fetchCybers(token);
+      const { cybers: list } = await fetchCybersAction();
       const summaries = list.map((c) => ({ id: c.id, nom: c.nom }));
       setCybers(summaries);
 
@@ -78,7 +78,7 @@ export function CyberProvider({ children }: { children: React.ReactNode }) {
     }
 
     setLoading(false);
-  }, [token, isAdmin, user]);
+  }, [isAdmin, user]);
 
   useEffect(() => {
     setLoading(true);

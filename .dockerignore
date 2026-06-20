@@ -1,0 +1,34 @@
+node_modules
+dist
+.next
+out
+build
+coverage
+
+# Env secrets
+.env
+.env.*
+!.env.shared.example
+cyber-server/.env
+cyber-ui/.env.local
+
+# UI not needed for edge image
+cyber-ui
+
+# .NET client
+cyber-client/bin
+cyber-client/obj
+
+# Docs and git
+.git
+.github
+docs
+*.md
+!cyber-server/**/*.md
+
+# Logs and OS
+*.log
+.DS_Store
+Thumbs.db
+.idea
+.vscode

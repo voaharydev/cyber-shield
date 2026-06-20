@@ -9,6 +9,8 @@ import { UsersModule } from './users/users.module';
 import { StatsModule } from './stats/stats.module';
 import { FideliteModule } from './fidelite/fidelite.module';
 import { SessionModule } from './session/session.module';
+import { SupabaseModule } from './supabase/supabase.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { SessionModule } from './session/session.module';
     StatsModule,
     FideliteModule,
     SessionModule,
+    SupabaseModule,
+    HealthModule,
   ],
   providers: [...authGlobalProviders],
 })

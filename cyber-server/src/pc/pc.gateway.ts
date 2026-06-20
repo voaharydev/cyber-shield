@@ -11,8 +11,7 @@ import { PcService } from './pc.service';
 
 interface ClientMeta {
   cyberId: string;
-  numeroPoste: number | null;
-  isDashboard: boolean;
+  numeroPoste: number;
 }
 
 @WebSocketGateway({ path: '/cyber' })
@@ -39,9 +38,24 @@ export class PcGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const role = url.searchParams.get('role');
       const posteParam = url.searchParams.get('poste');
       const cyberId = url.searchParams.get('cyber');
+      const wsSecret = url.searchParams.get('secret');
+      const expectedSecret = process.env.EDGE_WS_SECRET;
+
+      if (role === 'dashboard') {
+        client.close(
+          1008,
+          'Dashboard WebSocket déplacé vers Supabase Realtime (cloud)',
+        );
+        return;
+      }
 
       if (!cyberId) {
         client.close(1008, 'Paramètre cyber requis');
+        return;
+      }
+
+      if (expectedSecret && wsSecret !== expectedSecret) {
+        client.close(1008, 'Secret WebSocket invalide');
         return;
       }
 
@@ -54,47 +68,35 @@ export class PcGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      if (role === 'dashboard') {
-        this.clientMeta.set(client, {
-          cyberId,
-          numeroPoste: null,
-          isDashboard: true,
-        });
-        this.pcService.registerDashboard(cyberId, client);
-        this.logger.log(`Dashboard connecté (cyber ${cyberId})`);
-      } else if (posteParam) {
-        const numeroPoste = parseInt(posteParam, 10);
-        if (isNaN(numeroPoste) || numeroPoste < 1) {
-          client.close(1008, 'Numéro de poste invalide');
-          return;
-        }
-
-        this.clientMeta.set(client, {
-          cyberId,
-          numeroPoste,
-          isDashboard: false,
-        });
-        this.pcService.registerPcConnection(cyberId, numeroPoste, client);
-        this.logger.log(`PC poste ${numeroPoste} connecté (cyber ${cyberId})`);
-
-        client.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
-          const raw =
-            typeof data === 'string'
-              ? data
-              : Buffer.isBuffer(data)
-                ? data.toString('utf-8')
-                : Buffer.concat(data as Buffer[]).toString('utf-8');
-          void this.pcService.handleIncomingMessage(
-            client,
-            cyberId,
-            numeroPoste,
-            raw,
-          );
-        });
-      } else {
-        client.close(1008, 'Paramètre poste ou role=dashboard requis');
+      if (!posteParam) {
+        client.close(1008, 'Paramètre poste requis');
         return;
       }
+
+      const numeroPoste = parseInt(posteParam, 10);
+      if (isNaN(numeroPoste) || numeroPoste < 1) {
+        client.close(1008, 'Numéro de poste invalide');
+        return;
+      }
+
+      this.clientMeta.set(client, { cyberId, numeroPoste });
+      await this.pcService.registerPcConnection(cyberId, numeroPoste, client);
+      this.logger.log(`PC poste ${numeroPoste} connecté (cyber ${cyberId})`);
+
+      client.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
+        const raw =
+          typeof data === 'string'
+            ? data
+            : Buffer.isBuffer(data)
+              ? data.toString('utf-8')
+              : Buffer.concat(data as Buffer[]).toString('utf-8');
+        void this.pcService.handleIncomingMessage(
+          client,
+          cyberId,
+          numeroPoste,
+          raw,
+        );
+      });
 
       client.on('error', (err) => {
         this.logger.error('WebSocket error', err);
@@ -111,19 +113,10 @@ export class PcGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    if (meta.isDashboard) {
-      this.pcService.unregisterDashboard(meta.cyberId, client);
-      this.logger.log(`Dashboard déconnecté (cyber ${meta.cyberId})`);
-    } else if (meta.numeroPoste !== null) {
-      this.pcService.unregisterPcConnection(
-        meta.cyberId,
-        meta.numeroPoste,
-      );
-      this.logger.log(
-        `PC poste ${meta.numeroPoste} déconnecté (cyber ${meta.cyberId})`,
-      );
-    }
-
+    void this.pcService.unregisterPcConnection(meta.cyberId, meta.numeroPoste);
+    this.logger.log(
+      `PC poste ${meta.numeroPoste} déconnecté (cyber ${meta.cyberId})`,
+    );
     this.clientMeta.delete(client);
   }
 }

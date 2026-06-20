@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role } from '@cyber-shield/db';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { StatsService } from './stats.service';
 import { SalesStatsQueryDto } from './dto/sales-stats-query.dto';

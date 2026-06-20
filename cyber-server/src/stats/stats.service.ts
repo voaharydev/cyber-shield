@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@cyber-shield/db';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalesGroupBy, SalesStatsQueryDto } from './dto/sales-stats-query.dto';
 

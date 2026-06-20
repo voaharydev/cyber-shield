@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Cyber" ADD COLUMN "isActive" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Cyber" ADD COLUMN "archivedAt" TIMESTAMP(3);

@@ -3,7 +3,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, StatutTicket } from '@prisma/client';
+import { Prisma, StatutTicket } from '@cyber-shield/db';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '../config/config.service';
 import { FideliteService } from '../fidelite/fidelite.service';

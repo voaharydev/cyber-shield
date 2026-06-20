@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role } from '@cyber-shield/db';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStaffDto } from './dto/create-staff.dto';

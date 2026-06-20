@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('admin@cybercontrol.local');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await login(username.trim(), password);
+      await login(email.trim(), password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connexion échouée');
     } finally {
@@ -28,22 +28,19 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900/50 p-8">
         <h1 className="mb-2 text-2xl font-bold">CyberControl</h1>
         <p className="mb-6 text-sm text-zinc-500">
-          Connexion caisse — admin ou employé
+          Connexion caisse — Supabase Auth
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label
-              htmlFor="username"
-              className="mb-1 block text-sm text-zinc-400"
-            >
-              Identifiant
+            <label htmlFor="email" className="mb-1 block text-sm text-zinc-400">
+              Email
             </label>
             <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               autoComplete="username"
               required
               className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 text-white focus:border-emerald-500 focus:outline-none"
@@ -84,7 +81,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-xs text-zinc-600">
-          Démo : admin / admin123 ou staff / staff123
+          Démo : admin@cybercontrol.local / admin123
         </p>
       </div>
     </div>

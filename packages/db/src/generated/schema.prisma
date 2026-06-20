@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum StatutTicket {
+  VALIDE
+  ACTIVE
+  EXPIRE
+}
+
+enum StatutPoste {
+  VERROUILLE
+  EN_COURS
+  A_PAYER
+}
+
+enum TypeSession {
+  PREPAID
+  POSTPAID
+}
+
+enum TypePaiement {
+  ESPECES
+  MOBILE_MONEY
+  CARTE
+}
+
+enum TypeMouvementFidelite {
+  GAIN_ACHAT
+  ECHANGE_MINUTES
+  ECHANGE_REDUCTION
+}
+
+enum SourceMiseAJour {
+  LOCAL
+  CLOUD
+}
+
+model Cyber {
+  id            String    @id @default(cuid())
+  nom           String
+  nombrePostes  Int       @default(12)
+  dureesTicket  Int[]
+  prixParMinute Decimal   @default(100) @db.Decimal(10, 2)
+  isActive      Boolean   @default(true)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  staffAssignments   UserCyber[]
+  tickets            Ticket[]
+  sessions           SessionOrdinateur[]
+  postePresences     PostePresence[]
+  transactions       TransactionCaisse[]
+  mouvementsFidelite MouvementFidelite[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  username       String   @unique
+  email          String?  @unique
+  supabaseUserId String?  @unique
+  passwordHash   String
+  role           Role     @default(STAFF)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  cybers             UserCyber[]
+  ticketsCrees       Ticket[]
+  transactionsCaisse TransactionCaisse[]
+  mouvementsFidelite MouvementFidelite[]
+}
+
+model UserCyber {
+  userId     String
+  cyberId    String
+  assignedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cyber Cyber @relation(fields: [cyberId], references: [id], onDelete: Cascade)
+
+  @@id([userId, cyberId])
+  @@index([cyberId])
+}
+
+model FideliteConfig {
+  id                       String   @id @default("default")
+  pointsParMinuteAchat     Int      @default(1)
+  pointsPourMinuteGratuite Int      @default(10)
+  pointsPour100Ar          Int      @default(5)
+  actif                    Boolean  @default(true)
+  updatedAt                DateTime @updatedAt
+}
+
+model ClientFidelite {
+  id        String   @id @default(cuid())
+  telephone String   @unique
+  nom       String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tickets    Ticket[]
+  mouvements MouvementFidelite[]
+}
+
+model MouvementFidelite {
+  id          String                @id @default(cuid())
+  cyberId     String
+  clientId    String
+  type        TypeMouvementFidelite
+  points      Int
+  ticketId    String?
+  employeId   String
+  description String
+  createdAt   DateTime              @default(now())
+
+  cyber   Cyber          @relation(fields: [cyberId], references: [id])
+  client  ClientFidelite @relation(fields: [clientId], references: [id])
+  ticket  Ticket?        @relation(fields: [ticketId], references: [id])
+  employe User           @relation(fields: [employeId], references: [id])
+
+  @@index([clientId, createdAt])
+  @@index([cyberId, createdAt])
+}
+
+model Ticket {
+  id               String       @id @default(cuid())
+  cyberId          String
+  codeUnique       String
+  tempsInitial     Int
+  tempsRestant     Int
+  statut           StatutTicket @default(VALIDE)
+  creeParId        String
+  clientFideliteId String?
+  pointsGagnes     Int?
+  pointsUtilises   Int?
+  minutesBonus     Int          @default(0)
+  reductionAr      Decimal?     @db.Decimal(10, 2)
+  createdAt        DateTime     @default(now())
+
+  cyber          Cyber               @relation(fields: [cyberId], references: [id])
+  creePar        User                @relation(fields: [creeParId], references: [id])
+  clientFidelite ClientFidelite?     @relation(fields: [clientFideliteId], references: [id])
+  sessions       SessionOrdinateur[]
+  mouvements     MouvementFidelite[]
+
+  @@unique([cyberId, codeUnique])
+  @@index([cyberId, statut])
+  @@index([cyberId, createdAt])
+  @@index([codeUnique])
+  @@index([clientFideliteId])
+}
+
+model SessionOrdinateur {
+  id               String          @id @default(cuid())
+  cyberId          String
+  numeroPoste      Int
+  statut           StatutPoste     @default(VERROUILLE)
+  ticketActuelId   String?
+  typeSession      TypeSession?
+  baseTarifHoraire Decimal         @default(2.00) @db.Decimal(10, 2)
+  tempsDebut       DateTime?
+  tempsFin         DateTime?
+  montantDu        Decimal?        @db.Decimal(10, 2)
+  sourceMiseAJour  SourceMiseAJour @default(LOCAL)
+  updatedAt        DateTime        @updatedAt
+
+  cyber        Cyber   @relation(fields: [cyberId], references: [id])
+  ticketActuel Ticket? @relation(fields: [ticketActuelId], references: [id])
+
+  @@unique([cyberId, numeroPoste])
+  @@index([cyberId])
+}
+
+model PostePresence {
+  id          String   @id @default(cuid())
+  cyberId     String
+  numeroPoste Int
+  connected   Boolean  @default(false)
+  lastSeenAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cyber Cyber @relation(fields: [cyberId], references: [id], onDelete: Cascade)
+
+  @@unique([cyberId, numeroPoste])
+  @@index([cyberId])
+}
+
+model TransactionCaisse {
+  id              String       @id @default(cuid())
+  cyberId         String
+  montant         Decimal      @db.Decimal(10, 2)
+  typePaiement    TypePaiement
+  description     String
+  dateTransaction DateTime     @default(now())
+  employeId       String
+
+  cyber   Cyber @relation(fields: [cyberId], references: [id])
+  employe User  @relation(fields: [employeId], references: [id])
+
+  @@index([cyberId, dateTransaction])
+}

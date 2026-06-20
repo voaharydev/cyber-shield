@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { StatutPoste } from '@prisma/client';
+import { StatutPoste } from '@cyber-shield/db';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '../config/config.service';
 import { CreateCyberDto } from './dto/create-cyber.dto';

@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import { Role } from '@cyber-shield/db';
 
 export interface JwtPayload {
   sub: string;

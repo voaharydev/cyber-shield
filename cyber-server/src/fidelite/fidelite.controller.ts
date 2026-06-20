@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role } from '@cyber-shield/db';
 import { RequireCyber } from '../auth/decorators/require-cyber.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { FideliteService } from './fidelite.service';
