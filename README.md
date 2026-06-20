@@ -349,10 +349,13 @@ Dashboard : carte bleue (chrono + montant estimé), carte orange clignotante (`A
 
 1. Se connecter sur http://localhost:3001/login
 2. Vendre un ticket sur `/dashboard` (prépayé) ou tester la session libre
-3. Ouvrir `/test-client`, choisir le poste simulé
-4. **Ticket** : coller `TCK-XXXXX` → **Déverrouiller**
-5. **Session libre** : **Session libre** → chrono bleu sur le dashboard → **Terminer** → encaisser sur le dashboard
-6. Vérifier que le poste passe au vert (prépayé) ou orange `A_PAYER` (post-payé)
+3. Ouvrir `/test-client` (menu **Simulateur poste**) — écran PC visuel : verrouillé, chrono prépayé ou barre session libre en bas à droite
+4. Choisir le poste simulé (le poste passe **jaune** sur le dashboard)
+5. **Ticket** : coller `TCK-XXXXX` → **Déverrouiller**
+6. **Session libre** : **Session libre** → chrono bleu sur le dashboard → **Terminer la session** → encaisser sur le dashboard
+7. Vérifier que le poste passe au vert (prépayé) ou orange `A_PAYER` (post-payé)
+
+Le journal WebSocket et le bouton Ping sont disponibles dans **Mode technique** (section repliable).
 
 ### Option B — Script CLI (one-shot)
 

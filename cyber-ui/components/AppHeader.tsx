@@ -72,7 +72,7 @@ export function AppHeader({ title, subtitle, children }: AppHeaderProps) {
             href="/test-client"
             className="text-sm text-amber-400 underline hover:text-amber-300"
           >
-            Client test
+            Simulateur poste
           </Link>
           <button
             type="button"

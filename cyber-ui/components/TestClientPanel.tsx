@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PosteSimulatorView } from '@/components/PosteSimulatorView';
 import { usePcTestSocket } from '@/lib/pc-websocket';
 import { useConfig } from '@/lib/use-config';
-
 import { useCyber } from '@/lib/cyber-context';
 
 export function TestClientPanel() {
@@ -14,7 +14,6 @@ export function TestClientPanel() {
     (_, i) => i + 1,
   );
   const [numeroPoste, setNumeroPoste] = useState(1);
-  const [code, setCode] = useState('');
   const {
     connected,
     connectionError,
@@ -39,18 +38,9 @@ export function TestClientPanel() {
     }
   }, [config.nombrePostes, numeroPoste]);
 
-  const sessionActive =
-    lockState === 'DEVERROUILLE' && typeSession === 'POSTPAID';
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!code.trim()) return;
-    tryUnlock(code);
-  }
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <label htmlFor="poste" className="mb-1 block text-sm text-zinc-400">
             Numéro de poste
@@ -69,7 +59,7 @@ export function TestClientPanel() {
           </select>
         </div>
 
-        <div className="flex items-end gap-3">
+        <div className="flex items-center gap-3">
           <span
             className={`h-2.5 w-2.5 rounded-full ${
               connected ? 'bg-emerald-400' : 'bg-red-500'
@@ -90,77 +80,43 @@ export function TestClientPanel() {
         </div>
       </div>
 
-      <div
-        className={`rounded-xl border-2 p-6 text-center ${
-          lockState === 'VERROUILLE'
-            ? 'border-red-500/50 bg-red-950/30'
-            : typeSession === 'POSTPAID'
-              ? 'border-blue-500/50 bg-blue-950/30'
-              : 'border-emerald-500/50 bg-emerald-950/30'
-        }`}
-      >
-        <p className="text-sm text-zinc-400">État simulé</p>
-        <p className="mt-1 text-3xl font-bold">
-          {lockState === 'VERROUILLE' ? 'VERROUILLÉ' : 'DÉVERROUILLÉ'}
-        </p>
-        {typeSession && lockState === 'DEVERROUILLE' && (
-          <p className="mt-1 text-sm text-zinc-400">
-            {typeSession === 'POSTPAID' ? 'Session libre' : 'Ticket prépayé'}
-          </p>
-        )}
-        {typeSession === 'PREPAID' &&
-          tempsRestant !== null &&
-          lockState === 'DEVERROUILLE' && (
-            <p className="mt-2 font-mono text-xl text-emerald-300">
-              {tempsRestant} min restantes
-            </p>
-          )}
-        {typeSession === 'POSTPAID' &&
-          lockState === 'DEVERROUILLE' &&
-          tempsEcoule !== null && (
-            <p className="mt-2 font-mono text-xl text-blue-300">
-              {tempsEcoule} min écoulées
-              {montantEstime !== null && ` — ~${montantEstime} Ar`}
-            </p>
-          )}
-      </div>
+      <PosteSimulatorView
+        numeroPoste={numeroPoste}
+        connected={connected}
+        connectionError={connectionError}
+        lockState={lockState}
+        typeSession={typeSession}
+        tempsRestant={tempsRestant}
+        tempsEcoule={tempsEcoule}
+        montantEstime={montantEstime}
+        events={events}
+        onUnlock={tryUnlock}
+        onPostpaidStart={tryPostpaidStart}
+        onStopPostpaid={stopPostpaid}
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <form onSubmit={handleSubmit} className="flex gap-3">
-          <input
-            type="text"
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="TCK-XXXXX"
-            maxLength={9}
-            className="flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 font-mono text-white focus:border-emerald-500 focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={!connected || !code.trim()}
-            className="rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Déverrouiller
-          </button>
-        </form>
+      <details className="rounded-lg border border-zinc-800 bg-zinc-950/50">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-400 hover:text-zinc-300">
+          Mode technique
+        </summary>
+        <div className="space-y-4 border-t border-zinc-800 px-4 py-4">
+          <div className="space-y-1 text-xs text-zinc-500">
+            <p>
+              WebSocket :{' '}
+              <span className="font-mono text-zinc-400">{wsUrl}</span>
+            </p>
+            {!connected && (
+              <p>Vérifiez que cyber-server tourne sur le port 5001.</p>
+            )}
+            {connected && (
+              <p>
+                Le poste apparaît{' '}
+                <span className="text-yellow-400">jaune</span> sur le dashboard
+                tant que cette page est ouverte.
+              </p>
+            )}
+          </div>
 
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={tryPostpaidStart}
-            disabled={!connected || sessionActive}
-            className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Session libre
-          </button>
-          <button
-            type="button"
-            onClick={stopPostpaid}
-            disabled={!connected || !sessionActive}
-            className="flex-1 rounded-lg bg-amber-600 px-4 py-2 font-medium text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Terminer
-          </button>
           <button
             type="button"
             onClick={ping}
@@ -169,78 +125,60 @@ export function TestClientPanel() {
           >
             Ping
           </button>
-        </div>
-      </div>
 
-      <div className="space-y-1 text-xs text-zinc-500">
-        <p>
-          WebSocket : <span className="font-mono text-zinc-400">{wsUrl}</span>
-        </p>
-        {connectionError && (
-          <p className="text-red-400">{connectionError}</p>
-        )}
-        {!connected && (
-          <p>Vérifiez que cyber-server tourne sur le port 5001.</p>
-        )}
-        {connected && (
-          <p>
-            Le poste apparaît <span className="text-yellow-400">jaune</span> sur
-            le dashboard tant que cette page est ouverte.
-          </p>
-        )}
-      </div>
-
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-zinc-400">
-            Journal d&apos;événements
-          </h3>
-          {events.length > 0 && (
-            <button
-              type="button"
-              onClick={clearEvents}
-              className="text-xs text-zinc-500 underline hover:text-zinc-300"
-            >
-              Effacer
-            </button>
-          )}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-zinc-400">
+                Journal d&apos;événements
+              </h3>
+              {events.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearEvents}
+                  className="text-xs text-zinc-500 underline hover:text-zinc-300"
+                >
+                  Effacer
+                </button>
+              )}
+            </div>
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs">
+              {events.length === 0 ? (
+                <p className="text-zinc-600">Aucun événement reçu</p>
+              ) : (
+                <ul className="space-y-2">
+                  {events.map((entry) => (
+                    <li key={entry.id} className="border-b border-zinc-900 pb-2">
+                      <span className="text-zinc-500">
+                        {entry.timestamp.toLocaleTimeString('fr-FR')}
+                      </span>{' '}
+                      <span
+                        className={
+                          entry.payload.event === 'unlock_success'
+                            ? 'text-emerald-400'
+                            : entry.payload.event === 'unlock_rejected' ||
+                                entry.payload.event === 'error'
+                              ? 'text-red-400'
+                              : entry.payload.event === 'time_update'
+                                ? 'text-amber-400'
+                                : entry.payload.event === 'session_stopped' ||
+                                    entry.payload.event === 'command_lock'
+                                  ? 'text-orange-400'
+                                  : 'text-zinc-300'
+                        }
+                      >
+                        {String(entry.payload.event ?? 'message')}
+                      </span>
+                      <pre className="mt-1 whitespace-pre-wrap break-all text-zinc-500">
+                        {JSON.stringify(entry.payload)}
+                      </pre>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs">
-          {events.length === 0 ? (
-            <p className="text-zinc-600">Aucun événement reçu</p>
-          ) : (
-            <ul className="space-y-2">
-              {events.map((entry) => (
-                <li key={entry.id} className="border-b border-zinc-900 pb-2">
-                  <span className="text-zinc-500">
-                    {entry.timestamp.toLocaleTimeString('fr-FR')}
-                  </span>{' '}
-                  <span
-                    className={
-                      entry.payload.event === 'unlock_success'
-                        ? 'text-emerald-400'
-                        : entry.payload.event === 'unlock_rejected' ||
-                            entry.payload.event === 'error'
-                          ? 'text-red-400'
-                          : entry.payload.event === 'time_update'
-                            ? 'text-amber-400'
-                            : entry.payload.event === 'session_stopped' ||
-                                entry.payload.event === 'command_lock'
-                              ? 'text-orange-400'
-                              : 'text-zinc-300'
-                    }
-                  >
-                    {String(entry.payload.event ?? 'message')}
-                  </span>
-                  <pre className="mt-1 whitespace-pre-wrap break-all text-zinc-500">
-                    {JSON.stringify(entry.payload)}
-                  </pre>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      </details>
     </div>
   );
 }
